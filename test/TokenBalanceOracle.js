@@ -1,5 +1,5 @@
 const { assertRevert } = require('./helpers/helpers')
-const Oracle = artifacts.require('TokenOracle')
+const Oracle = artifacts.require('TokenBalanceOracle')
 const MockErc20 = artifacts.require('TokenMock')
 
 import DaoDeployment from './helpers/DaoDeployment'
@@ -7,7 +7,7 @@ import { deployedContract } from './helpers/helpers'
 
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
-contract('TokenOracle', ([rootAccount, ...accounts]) => {
+contract('TokenBalanceOracle', ([rootAccount, ...accounts]) => {
   let daoDeployment = new DaoDeployment()
   let oracleBase, oracle, mockErc20
   let CHANGE_TOKEN_ROLE
@@ -42,13 +42,26 @@ contract('TokenOracle', ([rootAccount, ...accounts]) => {
       assert.isTrue(hasInitialized)
     })
 
-    it('can perform action if account has tokens', async () => {
-      assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', []))
+    describe('canPerform(address, address, bytes32, uint256[])', async () => {
+      it('can perform action if account has tokens', async () => {
+        assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', []))
+      })
+
+      it('can perform action if account has the minimum reqiured amount of tokens', async () => {
+        assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', [100]))
+      })
+
+
+      it("can't perform action if account does not have the minimum reqiured amount of tokens", async () => {
+        assert.isFalse(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', [2000]))
+      })
+
+      it("can't perform action if account doesn't have tokens", async () => {
+        assert.isFalse(await oracle.canPerform(accounts[0], ANY_ADDR, '0x', []))
+      })
     })
 
-    it("can't perform action if account doesn't have tokens", async () => {
-      assert.isFalse(await oracle.canPerform(accounts[0], ANY_ADDR, '0x', []))
-    })
+   
 
     describe('changeToken(address _token)', () => {
       it('sets a new token', async () => {
@@ -70,7 +83,7 @@ contract('TokenOracle', ([rootAccount, ...accounts]) => {
     })
 
     it('reverts on checking can perform', async () => {
-      await assertRevert(oracle.canPerform())
+      await assertRevert(oracle.canPerform(rootAccount, ANY_ADDR, '0x', []))
     })
   })
 })

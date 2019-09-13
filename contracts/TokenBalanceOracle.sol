@@ -5,11 +5,13 @@ import "@aragon/os/contracts/acl/IACLOracle.sol";
 import "@aragon/os/contracts/lib/token/ERC20.sol";
 
 
-contract TokenOracle is AragonApp, IACLOracle {
+contract TokenBalanceOracle is AragonApp, IACLOracle {
 
-    bytes32 public constant CHANGE_TOKEN_ROLE = keccak256("CHANGE_DURATION_ROLE");
+    bytes32 public constant CHANGE_TOKEN_ROLE = keccak256("CHANGE_TOKEN_ROLE");
 
     ERC20 public token;
+
+    event ChangeToken(address _newToken);
 
     function initialize(address _token) external onlyInit {
         initialized();
@@ -17,15 +19,22 @@ contract TokenOracle is AragonApp, IACLOracle {
         token = ERC20(_token);
     }
 
+    /**
+    * @notice Change token to `_token`
+    * @param _token The new token address
+    */
     function changeToken(address _token) external auth(CHANGE_TOKEN_ROLE) {
         token = ERC20(_token);
+
+        emit ChangeToken(_token);
     }
 
     /**
     * @notice ACLOracle
     * @dev IACLOracle interface conformance
     */
-    function canPerform(address _sender, address, bytes32, uint256[]) external view returns (bool) {
-        return token.balanceOf(_sender) > 0;
+    function canPerform(address _sender, address, bytes32, uint256[] how) external view returns (bool) {
+        uint256 balance = token.balanceOf(_sender); 
+        return how.length > 0 ? balance >= how[0] : balance > 0;
     }
 }

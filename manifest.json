@@ -1,4 +1,4 @@
 {
   "name": "Token Balance Oracle",
-  "description": "ACL Oracle for token membership"
+  "description": "ACL Oracle enforcing token ownership"
 }
