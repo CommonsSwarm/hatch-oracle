@@ -64,8 +64,11 @@ contract('TokenBalanceOracle', ([rootAccount, ...accounts]) => {
    
 
     describe('changeToken(address _token)', () => {
-      it('sets a new token', async () => {
+      beforeEach('set permission', async () => {
         await daoDeployment.acl.createPermission(rootAccount, oracle.address, CHANGE_TOKEN_ROLE, rootAccount)
+      })
+
+      it('sets a new token', async () => {
         const newMockErc20 = await MockErc20.new(rootAccount, 100)
         const expectedToken = newMockErc20.address
 
@@ -73,6 +76,10 @@ contract('TokenBalanceOracle', ([rootAccount, ...accounts]) => {
 
         const actualToken = await oracle.token()
         assert.equal(actualToken, expectedToken)
+      })
+
+      it('reverts when setting a non contract token address', async () => {
+        await assertRevert(oracle.changeToken(rootAccount), 'ORACLE_TOKEN_NOT_CONTRACT')
       })
     })
   })

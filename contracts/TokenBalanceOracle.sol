@@ -8,6 +8,7 @@ import "@aragon/os/contracts/lib/token/ERC20.sol";
 contract TokenBalanceOracle is AragonApp, IACLOracle {
 
     bytes32 public constant CHANGE_TOKEN_ROLE = keccak256("CHANGE_TOKEN_ROLE");
+    string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
 
     ERC20 public token;
 
@@ -24,6 +25,7 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     * @param _token The new token address
     */
     function changeToken(address _token) external auth(CHANGE_TOKEN_ROLE) {
+        require(isContract(_token), ERROR_TOKEN_NOT_CONTRACT);
         token = ERC20(_token);
 
         emit ChangeToken(_token);
