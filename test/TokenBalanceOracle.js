@@ -47,16 +47,16 @@ contract('TokenBalanceOracle', ([rootAccount, ...accounts]) => {
         assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', []))
       })
 
-      it('can perform action if account has the minimum reqiured amount of tokens', async () => {
+      it('can perform action if account has the minimum required amount of tokens', async () => {
         assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', [100]))
       })
 
 
-      it("can't perform action if account does not have the minimum reqiured amount of tokens", async () => {
+      it("can't perform action if account does not have the minimum required amount of tokens", async () => {
         assert.isFalse(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', [2000]))
       })
 
-      it("can't perform action if account doesn't have tokens", async () => {
+      it("can't perform action if account does not have tokens", async () => {
         assert.isFalse(await oracle.canPerform(accounts[0], ANY_ADDR, '0x', []))
       })
     })
