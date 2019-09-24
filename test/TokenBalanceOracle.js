@@ -2,36 +2,48 @@ const { assertRevert } = require('./helpers/helpers')
 const Oracle = artifacts.require('TokenBalanceOracle')
 const MockErc20 = artifacts.require('TokenMock')
 
-import DaoDeployment from './helpers/DaoDeployment'
-import { deployedContract } from './helpers/helpers'
+const deployDAO = require('./helpers/deployDao')
+const { deployedContract } = require('./helpers/helpers')
+const { hash: nameHash } = require('eth-ens-namehash')
 
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
-contract('TokenBalanceOracle', ([rootAccount, ...accounts]) => {
-  let daoDeployment = new DaoDeployment()
+contract('TokenBalanceOracle', ([appManager, account1, account2, ...accounts]) => {
   let oracleBase, oracle, mockErc20
-  let CHANGE_TOKEN_ROLE
+  let SET_TOKEN_ROLE, SET_BALANCE_ROLE
 
   const MOCK_TOKEN_BALANCE = 1000
+  const account1Balance = 50
+  const ORACLE_MINIMUM_BALANCE = 100
 
-  before('deploy DAO', async () => {
-    await daoDeployment.deployBefore()
+  before('deploy base apps', async () => {
     oracleBase = await Oracle.new()
-    CHANGE_TOKEN_ROLE = await oracleBase.CHANGE_TOKEN_ROLE()
+    SET_TOKEN_ROLE = await oracleBase.SET_TOKEN_ROLE()
+    SET_BALANCE_ROLE = await oracleBase.SET_BALANCE_ROLE()
   })
 
-  beforeEach('install oracle', async () => {
-    await daoDeployment.deployBeforeEach(rootAccount)
-    const newOracleReceipt = await daoDeployment.kernel.newAppInstance('0x1234', oracleBase.address, '0x', false, {
-      from: rootAccount,
-    })
+  beforeEach('deploy dao and token balance oracle', async () => {
+    const daoDeployment = await deployDAO(appManager)
+    dao = daoDeployment.dao
+    acl = daoDeployment.acl
+
+    const newOracleReceipt = await dao.newAppInstance(
+      nameHash('token-balance-oracle.aragonpm.test'),
+      oracleBase.address,
+      '0x',
+      false,
+      {
+        from: appManager,
+      }
+    )
     oracle = await Oracle.at(deployedContract(newOracleReceipt))
-    mockErc20 = await MockErc20.new(rootAccount, MOCK_TOKEN_BALANCE)
+    mockErc20 = await MockErc20.new(appManager, MOCK_TOKEN_BALANCE)
+    mockErc20.transfer(account1, account1Balance)
   })
 
   describe('initialize(address _token)', () => {
     beforeEach('initialize oracle', async () => {
-      await oracle.initialize(mockErc20.address)
+      await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE)
     })
 
     it('sets variables as expected', async () => {
@@ -42,55 +54,98 @@ contract('TokenBalanceOracle', ([rootAccount, ...accounts]) => {
       assert.isTrue(hasInitialized)
     })
 
-    describe('canPerform(address, address, bytes32, uint256[])', async () => {
-      it('can perform action if account has tokens', async () => {
-        assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', []))
-      })
-
-      it('can perform action if account has the minimum required amount of tokens', async () => {
-        assert.isTrue(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', [100]))
-      })
-
-
-      it("can't perform action if account does not have the minimum required amount of tokens", async () => {
-        assert.isFalse(await oracle.canPerform(rootAccount, ANY_ADDR, '0x', [2000]))
-      })
-
-      it("can't perform action if account does not have tokens", async () => {
-        assert.isFalse(await oracle.canPerform(accounts[0], ANY_ADDR, '0x', []))
-      })
+    it('reverts on reinitialization', async () => {
+      await assertRevert(oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE), 'INIT_ALREADY_INITIALIZED')
     })
 
-   
-
-    describe('changeToken(address _token)', () => {
+    describe('setToken(address _token)', () => {
       beforeEach('set permission', async () => {
-        await daoDeployment.acl.createPermission(rootAccount, oracle.address, CHANGE_TOKEN_ROLE, rootAccount)
+        await acl.createPermission(appManager, oracle.address, SET_TOKEN_ROLE, appManager)
       })
 
       it('sets a new token', async () => {
-        const newMockErc20 = await MockErc20.new(rootAccount, 100)
+        const newMockErc20 = await MockErc20.new(appManager, 100)
         const expectedToken = newMockErc20.address
 
-        await oracle.changeToken(expectedToken)
+        await oracle.setToken(expectedToken)
 
         const actualToken = await oracle.token()
         assert.equal(actualToken, expectedToken)
       })
 
       it('reverts when setting a non contract token address', async () => {
-        await assertRevert(oracle.changeToken(rootAccount), 'ORACLE_TOKEN_NOT_CONTRACT')
+        await assertRevert(oracle.setToken(appManager), 'ORACLE_TOKEN_NOT_CONTRACT')
+      })
+    })
+
+    describe('setBalance(uint256 _minBalance)', () => {
+      beforeEach('set permission', async () => {
+        await acl.createPermission(appManager, oracle.address, SET_BALANCE_ROLE, appManager)
+      })
+
+      it('sets a new minimum balance', async () => {
+        const expectedNewBalance = 100
+        await oracle.setBalance(expectedNewBalance)
+
+        const actualNewBalance = await oracle.minBalance()
+        assert.equal(actualNewBalance, expectedNewBalance)
+      })
+    })
+
+    describe('canPerform(address, address, bytes32, uint256[])', async () => {
+      it(`can perform action if account has more than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
+        assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', []))
+      })
+
+      it(`can't perform action if account has less than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
+        assert.isFalse(await oracle.canPerform(account1, ANY_ADDR, '0x', []))
+      })
+
+      it("can't perform action if account does not have tokens", async () => {
+        assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', []))
+      })
+
+      describe('address passed as param', async () => {
+        it(`can perform action if account passed as param has more than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
+          assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [appManager]))
+        })
+
+        it(`can't perform action if account passed pas param has less than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
+          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account1]))
+        })
+
+        it("can't perform action if account passed as param does not have tokens", async () => {
+          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account2]))
+        })
+      })
+
+      describe('address and balance passed as params', async () => {
+        it('can perform action if account passed as param has more tokens than value passed as param', async () => {
+          assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [appManager, 100]))
+        })
+
+        it("can't perform action if account passed as param has less tokens than value passed as param", async () => {
+          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account1, 100]))
+        })
+
+        it("can't perform action if account passed as param does not have tokens", async () => {
+          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account2, 0]))
+        })
       })
     })
   })
 
   describe('app not initialized', () => {
-    it('reverts on changing token', async () => {
-      await assertRevert(oracle.changeToken(mockErc20.address), 'APP_AUTH_FAILED')
+    it('reverts on setting token', async () => {
+      await assertRevert(oracle.setToken(mockErc20.address), 'APP_AUTH_FAILED')
+    })
+
+    it('reverts on setting balance', async () => {
+      await assertRevert(oracle.setBalance(0), 'APP_AUTH_FAILED')
     })
 
     it('reverts on checking can perform', async () => {
-      await assertRevert(oracle.canPerform(rootAccount, ANY_ADDR, '0x', []))
+      await assertRevert(oracle.canPerform(appManager, ANY_ADDR, '0x', []))
     })
   })
 })
