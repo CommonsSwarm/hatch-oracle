@@ -7,28 +7,45 @@ import "@aragon/os/contracts/lib/token/ERC20.sol";
 
 contract TokenBalanceOracle is AragonApp, IACLOracle {
 
-    bytes32 public constant CHANGE_TOKEN_ROLE = keccak256("CHANGE_TOKEN_ROLE");
+    bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
+    bytes32 public constant SET_BALANCE_ROLE = keccak256("SET_BALANCE_ROLE");
+
     string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
 
     ERC20 public token;
+    uint256 public minBalance;
 
-    event ChangeToken(address _newToken);
+    event TokenSet(address token);
+    event MinimumBalanceSet(uint256 minBalance);
 
-    function initialize(address _token) external onlyInit {
-        initialized();
+    function initialize(address _token, uint256 _minBalance) external onlyInit {
+        require(isContract(_token), ERROR_TOKEN_NOT_CONTRACT);
 
         token = ERC20(_token);
+        minBalance = _minBalance;
+
+        initialized();
     }
 
     /**
-    * @notice Change token to `_token`
+    * @notice Update token address to `_token`
     * @param _token The new token address
     */
-    function changeToken(address _token) external auth(CHANGE_TOKEN_ROLE) {
+    function setToken(address _token) external auth(SET_TOKEN_ROLE) {
         require(isContract(_token), ERROR_TOKEN_NOT_CONTRACT);
         token = ERC20(_token);
 
-        emit ChangeToken(_token);
+        emit TokenSet(_token);
+    }
+
+    /**
+    * @notice Update minimum balance to `_minBalance`
+    * @param _minBalance The new minimum balance
+    */
+    function setBalance(uint256 _minBalance) external auth(SET_BALANCE_ROLE) {
+        minBalance = _minBalance;
+
+        emit MinimumBalanceSet(_minBalance);
     }
 
     /**
@@ -36,7 +53,15 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     * @dev IACLOracle interface conformance
     */
     function canPerform(address _sender, address, bytes32, uint256[] how) external view returns (bool) {
-        uint256 balance = token.balanceOf(_sender); 
-        return how.length > 0 ? balance >= how[0] : balance > 0;
+
+        address _receiver = how.length > 0 ? address(how[0]) : _sender;
+        uint256 requiredBalance = how.length > 1 ? how[1] : minBalance;
+
+        uint256 balance = token.balanceOf(_receiver);
+
+        if (requiredBalance == 0)
+            return balance > 0;
+
+        return balance >= requiredBalance;
     }
 }
