@@ -216,10 +216,8 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, nonContractAddr
 
       describe('executing function with address auth param', () => {
         beforeEach('Create role and grant with params', async () => {
-          await acl.createPermission(appManager, executionTarget.address, DECREASE_COUNTER_ROLE, appManager)
-          await acl.grantPermissionP(appManager, executionTarget.address, DECREASE_COUNTER_ROLE, params)
-          await acl.grantPermissionP(account1, executionTarget.address, DECREASE_COUNTER_ROLE, params)
-          await acl.grantPermissionP(account2, executionTarget.address, DECREASE_COUNTER_ROLE, params)
+          await acl.createPermission(ANY_ADDR, executionTarget.address, DECREASE_COUNTER_ROLE, appManager)
+          await acl.grantPermissionP(ANY_ADDR, executionTarget.address, DECREASE_COUNTER_ROLE, params)
         })
 
         it(`can decrease counter if account passed as param has a minimum balance of ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
@@ -241,10 +239,8 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, nonContractAddr
       describe('executing function with address and balance auth params', () => {
         //note that for this function the required minimum balance is set by the counter state variable.
         beforeEach('Create role and grant with params', async () => {
-          await acl.createPermission(appManager, executionTarget.address, INCREASE_COUNTER_ROLE, appManager)
-          await acl.grantPermissionP(appManager, executionTarget.address, INCREASE_COUNTER_ROLE, params)
-          await acl.grantPermissionP(account1, executionTarget.address, INCREASE_COUNTER_ROLE, params)
-          await acl.grantPermissionP(account2, executionTarget.address, INCREASE_COUNTER_ROLE, params)
+          await acl.createPermission(ANY_ADDR, executionTarget.address, INCREASE_COUNTER_ROLE, appManager)
+          await acl.grantPermissionP(ANY_ADDR, executionTarget.address, INCREASE_COUNTER_ROLE, params)
         })
 
         it(`can increase counter if account passed as param  has a minimum balance of 1 token`, async () => {
