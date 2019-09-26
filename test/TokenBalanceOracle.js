@@ -12,9 +12,9 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, nonContractAddr
   let oracleBase, oracle, mockErc20
   let SET_TOKEN_ROLE, SET_BALANCE_ROLE
 
-  const MOCK_TOKEN_BALANCE = 1000
-  const account1Balance = 50
   const ORACLE_MINIMUM_BALANCE = 100
+  const MOCK_TOKEN_BALANCE = 1000
+  const account1Balance = ORACLE_MINIMUM_BALANCE
 
   before('deploy base apps', async () => {
     oracleBase = await Oracle.new()
@@ -93,29 +93,64 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, nonContractAddr
     })
 
     describe('canPerform(address, address, bytes32, uint256[])', async () => {
-      it(`can perform action if account has more than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
-        assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', []))
-      })
+      describe('no permission params', () => {
+        context(`Required balance is ${ORACLE_MINIMUM_BALANCE}`, () => {
+          it('can perform action if account has more than minimum required balance', async () => {
+            assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', []))
+          })
 
-      it(`can't perform action if account has less than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
-        assert.isFalse(await oracle.canPerform(account1, ANY_ADDR, '0x', []))
-      })
+          it(`can perform action if account has exactly the minimum required balance`, async () => {
+            assert.isTrue(await oracle.canPerform(account1, ANY_ADDR, '0x', []))
+          })
 
-      it("can't perform action if account does not have tokens", async () => {
-        assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', []))
-      })
-
-      describe('balance passed as params', async () => {
-        it('can perform action if account passed as param has more tokens than value passed as param', async () => {
-          assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [950]))
+          it("can't perform action if account does not have tokens", async () => {
+            assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', []))
+          })
         })
 
-        it("can't perform action if account passed as param has less tokens than value passed as param", async () => {
-          assert.isFalse(await oracle.canPerform(account1, ANY_ADDR, '0x', [950]))
+        context(`Required balance is 0`, () => {
+          beforeEach('set minimum required balance to 0', async () => {
+            await acl.createPermission(appManager, oracle.address, SET_BALANCE_ROLE, appManager)
+            await oracle.setMinBalance(0)
+          })
+
+          it('all accounts with positive balance can perform action', async () => {
+            assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', []))
+            assert.isTrue(await oracle.canPerform(account1, ANY_ADDR, '0x', []))
+          })
+
+          it("can't perform action if account does not have tokens", async () => {
+            assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', []))
+          })
+        })
+      })
+
+      describe('balance passed as permission param', async () => {
+        let balancePermissionParam = MOCK_TOKEN_BALANCE - account1Balance
+
+        context(`Required balance passed as param is ${balancePermissionParam}`, () => {
+          it('can perform action if account has exactly the minimum required balance passed as param', async () => {
+            assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [balancePermissionParam]))
+          })
+
+          it("can't perform action if account has less tokens than balance passed as param", async () => {
+            assert.isFalse(await oracle.canPerform(account1, ANY_ADDR, '0x', [balancePermissionParam]))
+          })
+
+          it("can't perform action if account does not have tokens", async () => {
+            assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', [balancePermissionParam]))
+          })
         })
 
-        it("can't perform action if account passed as param does not have tokens", async () => {
-          assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', [950]))
+        context(`Required balance passed as param is 0`, () => {
+          it('all accounts with positive balance can perform action', async () => {
+            assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [0]))
+            assert.isTrue(await oracle.canPerform(account1, ANY_ADDR, '0x', [0]))
+          })
+
+          it("can't perform action if account does not have tokens", async () => {
+            assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', [0]))
+          })
         })
       })
     })
