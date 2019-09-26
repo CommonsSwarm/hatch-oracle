@@ -8,7 +8,7 @@ const { hash: nameHash } = require('eth-ens-namehash')
 
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
-contract('TokenBalanceOracle', ([appManager, account1, account2, ...accounts]) => {
+contract('TokenBalanceOracle', ([appManager, account1, account2, nonContractAddress]) => {
   let oracleBase, oracle, mockErc20
   let SET_TOKEN_ROLE, SET_BALANCE_ROLE
 
@@ -74,7 +74,7 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, ...accounts]) =
       })
 
       it('reverts when setting a non contract token address', async () => {
-        await assertRevert(oracle.setToken(appManager), 'ORACLE_TOKEN_NOT_CONTRACT')
+        await assertRevert(oracle.setToken(nonContractAddress), 'ORACLE_TOKEN_NOT_CONTRACT')
       })
     })
 
@@ -85,7 +85,7 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, ...accounts]) =
 
       it('sets a new minimum balance', async () => {
         const expectedNewBalance = 100
-        await oracle.setBalance(expectedNewBalance)
+        await oracle.setMinBalance(expectedNewBalance)
 
         const actualNewBalance = await oracle.minBalance()
         assert.equal(actualNewBalance, expectedNewBalance)
@@ -105,31 +105,17 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, ...accounts]) =
         assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', []))
       })
 
-      describe('address passed as param', async () => {
-        it(`can perform action if account passed as param has more than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
-          assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [appManager]))
-        })
-
-        it(`can't perform action if account passed pas param has less than ${ORACLE_MINIMUM_BALANCE} tokens`, async () => {
-          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account1]))
-        })
-
-        it("can't perform action if account passed as param does not have tokens", async () => {
-          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account2]))
-        })
-      })
-
-      describe('address and balance passed as params', async () => {
+      describe('balance passed as params', async () => {
         it('can perform action if account passed as param has more tokens than value passed as param', async () => {
-          assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [appManager, 100]))
+          assert.isTrue(await oracle.canPerform(appManager, ANY_ADDR, '0x', [950]))
         })
 
         it("can't perform action if account passed as param has less tokens than value passed as param", async () => {
-          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account1, 100]))
+          assert.isFalse(await oracle.canPerform(account1, ANY_ADDR, '0x', [950]))
         })
 
         it("can't perform action if account passed as param does not have tokens", async () => {
-          assert.isFalse(await oracle.canPerform(appManager, ANY_ADDR, '0x', [account2, 0]))
+          assert.isFalse(await oracle.canPerform(account2, ANY_ADDR, '0x', [950]))
         })
       })
     })
@@ -141,7 +127,7 @@ contract('TokenBalanceOracle', ([appManager, account1, account2, ...accounts]) =
     })
 
     it('reverts on setting balance', async () => {
-      await assertRevert(oracle.setBalance(0), 'APP_AUTH_FAILED')
+      await assertRevert(oracle.setMinBalance(0), 'APP_AUTH_FAILED')
     })
 
     it('reverts on checking can perform', async () => {

@@ -42,7 +42,7 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     * @notice Update minimum balance to `_minBalance`
     * @param _minBalance The new minimum balance
     */
-    function setBalance(uint256 _minBalance) external auth(SET_BALANCE_ROLE) {
+    function setMinBalance(uint256 _minBalance) external auth(SET_BALANCE_ROLE) {
         minBalance = _minBalance;
 
         emit MinimumBalanceSet(_minBalance);
@@ -50,14 +50,14 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
 
     /**
     * @notice ACLOracle
-    * @dev IACLOracle interface conformance
+    * @dev IACLOracle interface conformance.  If the ACLOracle permissioned function should specify the minimum balance,
+    *      it should be used with the modifier 'authP(SOME_ACL_ROLE, arr(minBalance))'
     */
     function canPerform(address _sender, address, bytes32, uint256[] how) external view returns (bool) {
 
-        address _receiver = how.length > 0 ? address(how[0]) : _sender;
-        uint256 requiredBalance = how.length > 1 ? how[1] : minBalance;
+        uint256 requiredBalance = how.length > 0 ? how[0] : minBalance;
 
-        uint256 balance = token.balanceOf(_receiver);
+        uint256 balance = token.balanceOf(_sender);
 
         if (requiredBalance == 0)
             return balance > 0;
