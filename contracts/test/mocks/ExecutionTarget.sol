@@ -19,7 +19,7 @@ contract ExecutionTarget is AragonApp {
         counter = x;
     }
 
-    function execute() external authP(EXECUTE_ROLE, arr(counter)) {
+    function execute(uint256 balance) external authP(EXECUTE_ROLE, arr(balance)) {
         counter += 1;
     }
 }
