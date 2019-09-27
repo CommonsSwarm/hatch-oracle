@@ -7,7 +7,7 @@
     }
     {
       "name": "Set the minimum required balance",
-      "id": "SET_BALANCE_ROLE",
+      "id": "SET_MIN_BALANCE_ROLE",
       "params": []
     }
   ],

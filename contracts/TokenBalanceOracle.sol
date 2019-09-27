@@ -8,7 +8,7 @@ import "@aragon/os/contracts/lib/token/ERC20.sol";
 contract TokenBalanceOracle is AragonApp, IACLOracle {
 
     bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
-    bytes32 public constant SET_BALANCE_ROLE = keccak256("SET_BALANCE_ROLE");
+    bytes32 public constant SET_MIN_BALANCE_ROLE = keccak256("SET_MIN_BALANCE_ROLE");
 
     string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
 
@@ -42,7 +42,7 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     * @notice Update minimum balance to `_minBalance`
     * @param _minBalance The new minimum balance
     */
-    function setMinBalance(uint256 _minBalance) external auth(SET_BALANCE_ROLE) {
+    function setMinBalance(uint256 _minBalance) external auth(SET_MIN_BALANCE_ROLE) {
         minBalance = _minBalance;
 
         emit MinimumBalanceSet(_minBalance);
@@ -55,13 +55,9 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     */
     function canPerform(address _sender, address, bytes32, uint256[] how) external view returns (bool) {
 
-        uint256 requiredBalance = how.length > 0 ? how[0] : minBalance;
+        uint256 minBalanceLocal = how.length > 0 ? how[0] : minBalance;
+        uint256 senderBalance = token.balanceOf(_sender);
 
-        uint256 balance = token.balanceOf(_sender);
-
-        if (requiredBalance == 0)
-            return balance > 0;
-
-        return balance >= requiredBalance;
+        return senderBalance >= minBalanceLocal;
     }
 }
