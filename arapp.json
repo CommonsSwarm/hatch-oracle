@@ -1,8 +1,13 @@
 {
   "roles": [
     {
-      "name": "Change token role",
-      "id": "CHANGE_TOKEN_ROLE",
+      "name": "Set the token address",
+      "id": "SET_TOKEN_ROLE",
+      "params": []
+    }
+    {
+      "name": "Set the minimum required balance",
+      "id": "SET_MIN_BALANCE_ROLE",
       "params": []
     }
   ],
