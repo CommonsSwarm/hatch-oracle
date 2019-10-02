@@ -25,7 +25,7 @@ contract ExecutionTarget is AragonApp {
     }
 
     function decreaseCounter(uint256 minBalance) external authP(DECREASE_COUNTER_ROLE, arr(msg.sender, minBalance)) {
-        if (counter > 1)
+        if (counter > 0)
             counter -= 1;
     }
 
