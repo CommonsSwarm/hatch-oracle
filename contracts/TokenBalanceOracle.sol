@@ -53,10 +53,10 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     * @dev IACLOracle interface conformance.  If the ACLOracle permissioned function should specify the minimum balance,
     *      it should be used with the modifier 'authP(SOME_ACL_ROLE, arr(receiver, minBalance))'
     */
-    function canPerform(address _sender, address, bytes32, uint256[] how) external view returns (bool) {
+    function canPerform(address _sender, address, bytes32, uint256[] _how) external view returns (bool) {
 
-        address sender = how.length > 0 ? address(how[0]) : _sender;
-        uint256 minBalanceLocal = how.length > 1 ? how[1] : minBalance;
+        address sender = _how.length > 0 ? address(_how[0]) : _sender;
+        uint256 minBalanceLocal = _how.length > 1 ? _how[1] : minBalance;
 
         uint256 senderBalance = token.balanceOf(sender);
         return senderBalance >= minBalanceLocal;
