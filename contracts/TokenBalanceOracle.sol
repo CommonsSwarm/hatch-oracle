@@ -52,7 +52,7 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     * @notice ACLOracle
     * @dev IACLOracle interface conformance.  The ACLOracle permissioned function should specify the sender 
     * .    with 'authP(SOME_ACL_ROLE, arr(sender))', typically set to 'msg.sender'. 
-    * .    The function can optionally specify the the minimum balance required with 'authP(SOME_ACL_ROLE, arr(sender, minBalance))'
+    * .    The function can optionally specify the minimum balance required with 'authP(SOME_ACL_ROLE, arr(sender, minBalance))'
     */
     function canPerform(address _sender, address, bytes32, uint256[] _how) external view returns (bool) {
 
