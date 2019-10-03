@@ -5,7 +5,8 @@ import "@aragon/os/contracts/apps/AragonApp.sol";
 
 contract ExecutionTarget is AragonApp {
     bytes32 public constant SET_COUNTER_ROLE = keccak256("SET_COUNTER_ROLE");
-    bytes32 public constant EXECUTE_ROLE = keccak256("EXECUTE_ROLE");
+    bytes32 public constant INCREASE_COUNTER_ROLE = keccak256("INCREASE_COUNTER_ROLE");
+    bytes32 public constant DECREASE_COUNTER_ROLE = keccak256("DECREASE_COUNTER_ROLE");
 
     uint public counter;
 
@@ -19,7 +20,13 @@ contract ExecutionTarget is AragonApp {
         counter = x;
     }
 
-    function execute(uint256 balance) external authP(EXECUTE_ROLE, arr(balance)) {
+    function increaseCounter() external authP(INCREASE_COUNTER_ROLE, arr(msg.sender)) {
         counter += 1;
     }
+
+    function decreaseCounter(uint256 minBalance) external authP(DECREASE_COUNTER_ROLE, arr(msg.sender, minBalance)) {
+        if (counter > 0)
+            counter -= 1;
+    }
+
 }

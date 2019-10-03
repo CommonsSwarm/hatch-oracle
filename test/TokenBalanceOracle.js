@@ -10,12 +10,9 @@ const BN = require('bn.js')
 
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
-const ORACLE_PARAM_ID = new BN(203).shln(248)
-const EQ = new BN(1).shln(240)
-
 contract('TokenBalanceOracle', ([appManager, accountBal900, accountBal100, accountBal0, nonContractAddress]) => {
-  let oracleBase, oracle, mockErc20, executionTargetBase, executionTarget
-  let SET_TOKEN_ROLE, SET_MIN_BALANCE_ROLE, SET_COUNTER_ROLE, EXECUTE_ROLE
+  let oracleBase, oracle, mockErc20
+  let SET_TOKEN_ROLE, SET_MIN_BALANCE_ROLE
 
   const ORACLE_MINIMUM_BALANCE = 100
   const MOCK_TOKEN_BALANCE = 1000
@@ -24,10 +21,6 @@ contract('TokenBalanceOracle', ([appManager, accountBal900, accountBal100, accou
     oracleBase = await Oracle.new()
     SET_TOKEN_ROLE = await oracleBase.SET_TOKEN_ROLE()
     SET_MIN_BALANCE_ROLE = await oracleBase.SET_MIN_BALANCE_ROLE()
-
-    executionTargetBase = await ExecutionTarget.new()
-    SET_COUNTER_ROLE = await executionTargetBase.SET_COUNTER_ROLE()
-    EXECUTE_ROLE = await executionTargetBase.EXECUTE_ROLE()
   })
 
   beforeEach('deploy dao and token balance oracle', async () => {
@@ -133,41 +126,85 @@ contract('TokenBalanceOracle', ([appManager, accountBal900, accountBal100, accou
         })
       })
 
-      describe('balance passed as permission param', async () => {
+      describe('address passed as permission param', async () => {
         let balancePermissionParam = MOCK_TOKEN_BALANCE - ORACLE_MINIMUM_BALANCE
 
-        context(`Required balance passed as param is ${balancePermissionParam}`, () => {
+        context(`Required balance is ${ORACLE_MINIMUM_BALANCE}`, () => {
           it('can perform action if account has exactly the minimum required balance passed as param', async () => {
-            assert.isTrue(await oracle.canPerform(accountBal900, ANY_ADDR, '0x', [balancePermissionParam]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900]))
           })
 
-          it("can't perform action if account has less tokens than balance passed as param", async () => {
-            assert.isFalse(await oracle.canPerform(accountBal100, ANY_ADDR, '0x', [balancePermissionParam]))
+          it('can perform action if account has exactly the minimum required balance', async () => {
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal100]))
           })
 
           it("can't perform action if account does not have tokens", async () => {
-            assert.isFalse(await oracle.canPerform(accountBal0, ANY_ADDR, '0x', [balancePermissionParam]))
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal0]))
+          })
+        })
+
+        context(`Required balance is 1`, () => {
+          beforeEach('set minimum required balance to 1', async () => {
+            await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
+            await oracle.setMinBalance(1)
+          })
+
+          it('all accounts with positive balance can perform action', async () => {
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal100]))
+          })
+
+          it("can't perform action if account does not have tokens", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal0]))
+          })
+        })
+      })
+
+      describe('address and balance passed as permission params', async () => {
+        const balancePermissionParam = MOCK_TOKEN_BALANCE - ORACLE_MINIMUM_BALANCE
+
+        context(`Required balance passed as param is ${balancePermissionParam}`, () => {
+          it('can perform action if account has exactly the minimum required balance passed as param', async () => {
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900, balancePermissionParam]))
+          })
+
+          it("can't perform action if account has less tokens than balance passed as param", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal100, balancePermissionParam]))
+          })
+
+          it("can't perform action if account does not have tokens", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal0, balancePermissionParam]))
           })
         })
 
         context(`Required balance passed as param is 1`, () => {
           it('all accounts with positive balance can perform action', async () => {
-            assert.isTrue(await oracle.canPerform(accountBal900, ANY_ADDR, '0x', [1]))
-            assert.isTrue(await oracle.canPerform(accountBal100, ANY_ADDR, '0x', [1]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900, 1]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal100, 1]))
           })
 
           it("can't perform action if account does not have tokens", async () => {
-            assert.isFalse(await oracle.canPerform(accountBal0, ANY_ADDR, '0x', [1]))
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal0, 1]))
           })
         })
       })
     })
 
     describe('integration tests with executionTarget', () => {
-      let INITIAL_COUNTER = 1
+      let executionTargetBase, executionTarget
+      let SET_COUNTER_ROLE, INCREASE_COUNTER_ROLE, DECREASE_COUNTER_ROLE
       let oracleAddressBN, params
 
+      const ORACLE_PARAM_ID = new BN(203).shln(248)
+      const EQ = new BN(1).shln(240)
+      const INITIAL_COUNTER = 1
+
       beforeEach('deploy ExecutionTarget', async () => {
+        executionTargetBase = await ExecutionTarget.new()
+        SET_COUNTER_ROLE = await executionTargetBase.SET_COUNTER_ROLE()
+        INCREASE_COUNTER_ROLE = await executionTargetBase.INCREASE_COUNTER_ROLE()
+        DECREASE_COUNTER_ROLE = await executionTargetBase.DECREASE_COUNTER_ROLE()
+
         const newExecutionTargetReceipt = await dao.newAppInstance(
           nameHash('execution-target.aragonpm.test'),
           executionTargetBase.address,
@@ -186,6 +223,7 @@ contract('TokenBalanceOracle', ([appManager, accountBal900, accountBal100, accou
         await executionTarget.initialize(INITIAL_COUNTER)
       })
 
+      // no auth params
       describe('executing function with no auth params', () => {
         beforeEach('Create role and grant with params', async () => {
           await acl.createPermission(appManager, executionTarget.address, SET_COUNTER_ROLE, appManager)
@@ -220,9 +258,7 @@ contract('TokenBalanceOracle', ([appManager, accountBal900, accountBal100, accou
           })
 
           it('all accounts with positive balance can set counter', async () => {
-            //accountBal900
             await executionTarget.setCounter(1, { from: accountBal900 })
-            //accountBal100
             await executionTarget.setCounter(1, { from: accountBal100 })
           })
 
@@ -245,53 +281,100 @@ contract('TokenBalanceOracle', ([appManager, accountBal900, accountBal100, accou
         })
       })
 
-      describe('executing function with balance auth param', () => {
+      //address as auth param
+      describe('executing function with address auth param', () => {
         beforeEach('Create role and grant with params', async () => {
-          await acl.createPermission(appManager, executionTarget.address, EXECUTE_ROLE, appManager)
-          await acl.grantPermissionP(accountBal900, executionTarget.address, EXECUTE_ROLE, params)
-          await acl.grantPermissionP(accountBal100, executionTarget.address, EXECUTE_ROLE, params)
-          await acl.grantPermissionP(accountBal0, executionTarget.address, EXECUTE_ROLE, params)
+          await acl.createPermission(appManager, executionTarget.address, INCREASE_COUNTER_ROLE, appManager)
+          await acl.grantPermissionP(ANY_ADDR, executionTarget.address, INCREASE_COUNTER_ROLE, params)
         })
 
         context(`Required balance is ${ORACLE_MINIMUM_BALANCE}`, () => {
-          const balance = ORACLE_MINIMUM_BALANCE
-
-          it('can execute target if account has more than minimum required balance', async () => {
-            await executionTarget.execute(balance, { from: accountBal900 })
+          it('can increase counter if account has more than minimum required balance', async () => {
+            await executionTarget.increaseCounter({ from: accountBal900 })
 
             const actualCounter = await executionTarget.counter()
             assert.equal(actualCounter, INITIAL_COUNTER + 1)
           })
 
-          it(`can perform action if account has exactly the minimum required balance`, async () => {
-            await executionTarget.execute(balance, { from: accountBal100 })
+          it(`can increase counter if account has exactly the minimum required balance`, async () => {
+            await executionTarget.increaseCounter({ from: accountBal100 })
           })
 
-          it("can't perform action if account does not have tokens", async () => {
-            await assertRevert(executionTarget.execute(balance, { from: accountBal0 }), 'APP_AUTH_FAILED')
+          it("can't increase counter if account does not have tokens", async () => {
+            await assertRevert(executionTarget.increaseCounter({ from: accountBal0 }), 'APP_AUTH_FAILED')
+          })
+        })
+
+        context(`Required balance is 1`, () => {
+          beforeEach('set minimum required balance to 1', async () => {
+            await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
+            await oracle.setMinBalance(1)
+          })
+
+          it('all accounts with positive balance can increase counter', async () => {
+            await executionTarget.increaseCounter({ from: accountBal900 })
+            await executionTarget.increaseCounter({ from: accountBal100 })
+          })
+
+          it('all accounts with no balance cannot increase counter', async () => {
+            await assertRevert(executionTarget.increaseCounter({ from: accountBal0 }), 'APP_AUTH_FAILED')
+          })
+        })
+
+        context(`required balance is ${MOCK_TOKEN_BALANCE * 2}`, () => {
+          beforeEach(`set minimum required balance to ${MOCK_TOKEN_BALANCE * 2}`, async () => {
+            await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
+            await oracle.setMinBalance(MOCK_TOKEN_BALANCE * 2)
+          })
+
+          it('no account can increase counter', async () => {
+            await assertRevert(executionTarget.increaseCounter({ from: accountBal900 }), 'APP_AUTH_FAILED')
+            await assertRevert(executionTarget.increaseCounter({ from: accountBal100 }), 'APP_AUTH_FAILED')
+            await assertRevert(executionTarget.increaseCounter({ from: accountBal0 }), 'APP_AUTH_FAILED')
+          })
+        })
+      })
+
+      //address and balance as auth params
+      describe('executing function with address and balance auth params', () => {
+        beforeEach('Create role and grant with params', async () => {
+          await acl.createPermission(appManager, executionTarget.address, DECREASE_COUNTER_ROLE, appManager)
+          await acl.grantPermissionP(ANY_ADDR, executionTarget.address, DECREASE_COUNTER_ROLE, params)
+        })
+
+        context(`Required balance is ${ORACLE_MINIMUM_BALANCE}`, () => {
+          const balance = ORACLE_MINIMUM_BALANCE
+
+          it(`all accounts with at least ${ORACLE_MINIMUM_BALANCE} tokens can decrease counter`, async () => {
+            await executionTarget.decreaseCounter(balance, { from: accountBal900 })
+            await executionTarget.decreaseCounter(balance, { from: accountBal100 })
+          })
+
+          it('all accounts with no balance cannot decrease counter', async () => {
+            await assertRevert(executionTarget.decreaseCounter(balance, { from: accountBal0 }), 'APP_AUTH_FAILED')
           })
         })
 
         context(`Required balance is 1`, () => {
           const balance = 1
 
-          it('all accounts with positive balance can execute target', async () => {
-            await executionTarget.execute(balance, { from: accountBal900 })
-            await executionTarget.execute(balance, { from: accountBal100 })
+          it('all accounts with positive balance can decrease counter', async () => {
+            await executionTarget.decreaseCounter(balance, { from: accountBal900 })
+            await executionTarget.decreaseCounter(balance, { from: accountBal100 })
           })
 
-          it('all accounts with no balance cannot execute target', async () => {
-            await assertRevert(executionTarget.execute(balance, { from: accountBal0 }), 'APP_AUTH_FAILED')
+          it('all accounts with no balance cannot decrease counter', async () => {
+            await assertRevert(executionTarget.decreaseCounter(balance, { from: accountBal0 }), 'APP_AUTH_FAILED')
           })
         })
 
         context(`required balance is ${MOCK_TOKEN_BALANCE * 2}`, () => {
           const balance = MOCK_TOKEN_BALANCE * 2
 
-          it('no account can execute target', async () => {
-            await assertRevert(executionTarget.execute(balance, { from: accountBal900 }), 'APP_AUTH_FAILED')
-            await assertRevert(executionTarget.execute(balance, { from: accountBal100 }), 'APP_AUTH_FAILED')
-            await assertRevert(executionTarget.execute(balance, { from: accountBal0 }), 'APP_AUTH_FAILED')
+          it('no account can decrease counter', async () => {
+            await assertRevert(executionTarget.decreaseCounter(balance, { from: accountBal900 }), 'APP_AUTH_FAILED')
+            await assertRevert(executionTarget.decreaseCounter(balance, { from: accountBal100 }), 'APP_AUTH_FAILED')
+            await assertRevert(executionTarget.decreaseCounter(balance, { from: accountBal0 }), 'APP_AUTH_FAILED')
           })
         })
       })
