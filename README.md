@@ -12,7 +12,7 @@ The code in this repo has not been audited.
 
 ## How does it work?
 
-The Token Oracle app is initialized with the address of an ERC-20 token and a minimum balance. It has setters for both of these parameters. Other applications can then query the Token Oracle to determine if an account has at least the minimum balance of the token that the Token Oracle is tracking.
+The Token Oracle app is initialized with the address of an ERC-20 token and a minimum balance. It has setters for both of these parameters. Other applications can then "query" through the ACL, the Token Oracle to determine if an account has at least the minimum balance of the token that the Token Oracle is tracking.
 
 ## Initialization
 
