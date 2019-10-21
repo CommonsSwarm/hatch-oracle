@@ -26,7 +26,7 @@ The Token Oracle app should implement the following roles:
 
 ## Interface
 
-The Dissent Oracle does not have an interface. It is meant as a back-end helper function for Aragon applications to perform more sophisticated permissions evaluation.
+The Token Oracle does not have an interface. It is meant as a back-end helper function for Aragon applications to perform more sophisticated permissions evaluation.
 
 ## How to run Token Oracle locally
 
