@@ -2,10 +2,6 @@
 
 The Token Oracle app is an [ACL Oracle](https://hack.aragon.org/docs/acl_IACLOracle). ACL Oracles are small helper functions that plug in to Aragon's access control list (ACL) to do more sophisticated permission evaluation. In the context of Dandelion Orgs, the Token Oracle is used to check if an address holds Dandelion Org tokens and is thus a member of the organization. This is done by setting a minimum required balance in the Token Oracle. Then when an account submits the intent to perform an action on an Aragon app function whose ROLE is protected behind this Oracle, the ACL will check with the Oracle if the account has the minimum balance of tokens required. The Token Oracle will return a boolean which can be used to either approve or reject the intent.
 
-#### 🐲 Project stage: development
-
-The Token Oracle app is still in development. If you are interested in contributing please see our open [issues](https://github.com/1hive/time-lock-app/issues).
-
 #### 🚨 Security review status: pre-audit
 
 The code in this repo has not been audited.
