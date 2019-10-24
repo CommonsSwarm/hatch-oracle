@@ -1,4 +1,6 @@
-ACL Oracle enforcing token ownership
+The Token Balance Oracle is an ACL Oracle that checks if an address holds a minimum required balance of certain token.
+
+When performing an action on an installed Aragon App, if the function to execute is protected with a ROLE which is set with this ACL Oracle, the Oracle will check if the address has the minimum required balance of the token that is tracking. In the case the outcome is positive, the address is permitted to execute the function.
 
 **WARNING**
 

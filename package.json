@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "prepublishOnly": "aragon contracts compile",
-    "publish:patch": "aragon apm publish patch --files dist",
-    "publish:minor": "aragon apm publish minor --files dist",
-    "publish:major": "aragon apm publish major --files dist",
-    "build": "rsync -rtu ./public/ ./dist",
+    "publish:patch": "aragon apm publish patch --files public",
+    "publish:minor": "aragon apm publish minor --files public",
+    "publish:major": "aragon apm publish major --files public",
     "deploy:staging": "npm run publish:major -- --environment staging",
     "versions": "aragon apm versions",
     "lint": "eslint . & solium --dir ./contracts",
