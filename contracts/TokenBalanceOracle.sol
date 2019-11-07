@@ -10,7 +10,10 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
     bytes32 public constant SET_MIN_BALANCE_ROLE = keccak256("SET_MIN_BALANCE_ROLE");
 
-    string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
+    string private constant ERROR_TOKEN_NOT_CONTRACT = "TOKEN_BALANCE_ORACLE_TOKEN_NOT_CONTRACT";
+    string private constant ERROR_SENDER_MISSING = "TOKEN_BALANCE_ORACLE_SENDER_MISSING";
+    string private constant ERROR_SENDER_TOO_BIG = "TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG";
+    string private constant ERROR_SENDER_ZERO = "TOKEN_BALANCE_ORACLE_SENDER_ZERO";
 
     ERC20 public token;
     uint256 public minBalance;
@@ -50,16 +53,17 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
 
     /**
     * @notice ACLOracle
-    * @dev IACLOracle interface conformance.  The ACLOracle permissioned function should specify the sender 
-    * .    with 'authP(SOME_ACL_ROLE, arr(sender))', typically set to 'msg.sender'. 
-    * .    The function can optionally specify the minimum balance required with 'authP(SOME_ACL_ROLE, arr(sender, minBalance))'
+    * @dev IACLOracle interface conformance.  The ACLOracle permissioned function should specify the sender
+    *     with 'authP(SOME_ACL_ROLE, arr(sender))', typically set to 'msg.sender'.
     */
-    function canPerform(address _sender, address, bytes32, uint256[] _how) external view returns (bool) {
+    function canPerform(address, address, bytes32, uint256[] _how) external view returns (bool) {
+        require(_how.length > 0, ERROR_SENDER_MISSING);
+        require(_how[0] < 2**160, ERROR_SENDER_TOO_BIG);
+        require(_how[0] != 0, ERROR_SENDER_ZERO);
 
-        address sender = _how.length > 0 ? address(_how[0]) : _sender;
-        uint256 minBalanceLocal = _how.length > 1 ? _how[1] : minBalance;
+        address sender = address(_how[0]);
 
         uint256 senderBalance = token.balanceOf(sender);
-        return senderBalance >= minBalanceLocal;
+        return senderBalance >= minBalance;
     }
 }
