@@ -10,10 +10,10 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
     bytes32 public constant SET_MIN_BALANCE_ROLE = keccak256("SET_MIN_BALANCE_ROLE");
 
-    string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
-    string private constant ERROR_SENDER_MISSING = "ORACLE_SENDER_MISSING";
-    string private constant ERROR_SENDER_TOO_BIG = "ORACLE_SENDER_TOO_BIG";
-    string private constant ERROR_SENDER_ZERO = "ORACLE_SENDER_ZERO";
+    string private constant ERROR_TOKEN_NOT_CONTRACT = "TOKEN_BALANCE_ORACLE_TOKEN_NOT_CONTRACT";
+    string private constant ERROR_SENDER_MISSING = "TOKEN_BALANCE_ORACLE_SENDER_MISSING";
+    string private constant ERROR_SENDER_TOO_BIG = "TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG";
+    string private constant ERROR_SENDER_ZERO = "TOKEN_BALANCE_ORACLE_SENDER_ZERO";
 
     ERC20 public token;
     uint256 public minBalance;
