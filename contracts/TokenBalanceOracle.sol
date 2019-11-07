@@ -11,6 +11,7 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     bytes32 public constant SET_MIN_BALANCE_ROLE = keccak256("SET_MIN_BALANCE_ROLE");
 
     string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
+    string private constant ERROR_SENDER_NO_ADDRESS = "ORACLE_SENDER_NO_ADDRESS";
 
     ERC20 public token;
     uint256 public minBalance;
@@ -50,16 +51,14 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
 
     /**
     * @notice ACLOracle
-    * @dev IACLOracle interface conformance.  The ACLOracle permissioned function should specify the sender 
-    * .    with 'authP(SOME_ACL_ROLE, arr(sender))', typically set to 'msg.sender'. 
-    * .    The function can optionally specify the minimum balance required with 'authP(SOME_ACL_ROLE, arr(sender, minBalance))'
+    * @dev IACLOracle interface conformance.  The ACLOracle permissioned function should specify the sender
+    *     with 'authP(SOME_ACL_ROLE, arr(sender))', typically set to 'msg.sender'.
     */
-    function canPerform(address _sender, address, bytes32, uint256[] _how) external view returns (bool) {
-
-        address sender = _how.length > 0 ? address(_how[0]) : _sender;
-        uint256 minBalanceLocal = _how.length > 1 ? _how[1] : minBalance;
+    function canPerform(address, address, bytes32, uint256[] _how) external view returns (bool) {
+        address sender = address(_how[0]);
+        require(sender != address(0), ERROR_SENDER_NO_ADDRESS);
 
         uint256 senderBalance = token.balanceOf(sender);
-        return senderBalance >= minBalanceLocal;
+        return senderBalance >= minBalance;
     }
 }
