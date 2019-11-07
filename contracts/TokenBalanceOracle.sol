@@ -11,7 +11,9 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     bytes32 public constant SET_MIN_BALANCE_ROLE = keccak256("SET_MIN_BALANCE_ROLE");
 
     string private constant ERROR_TOKEN_NOT_CONTRACT = "ORACLE_TOKEN_NOT_CONTRACT";
-    string private constant ERROR_SENDER_NO_ADDRESS = "ORACLE_SENDER_NO_ADDRESS";
+    string private constant ERROR_SENDER_MISSING = "ORACLE_SENDER_MISSING";
+    string private constant ERROR_SENDER_TOO_BIG = "ORACLE_SENDER_TOO_BIG";
+    string private constant ERROR_SENDER_ZERO = "ORACLE_SENDER_ZERO";
 
     ERC20 public token;
     uint256 public minBalance;
@@ -55,8 +57,11 @@ contract TokenBalanceOracle is AragonApp, IACLOracle {
     *     with 'authP(SOME_ACL_ROLE, arr(sender))', typically set to 'msg.sender'.
     */
     function canPerform(address, address, bytes32, uint256[] _how) external view returns (bool) {
+        require(_how.length > 0, ERROR_SENDER_MISSING);
+        require(_how[0] < 2**160, ERROR_SENDER_TOO_BIG);
+        require(_how[0] != 0, ERROR_SENDER_ZERO);
+
         address sender = address(_how[0]);
-        require(sender != address(0), ERROR_SENDER_NO_ADDRESS);
 
         uint256 senderBalance = token.balanceOf(sender);
         return senderBalance >= minBalance;
