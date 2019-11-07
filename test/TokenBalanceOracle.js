@@ -132,19 +132,22 @@ contract(
         it('reverts when no sender passed as param', async () => {
           await assertRevert(
             oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', []),
-            'ORACLE_SENDER_MISSING'
+            'TOKEN_BALANCE_ORACLE_SENDER_MISSING'
           )
         })
 
         it('reverts when sender too big', async () => {
           await assertRevert(
             oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [new BN(2).pow(new BN(160))]),
-            'ORACLE_SENDER_TOO_BIG'
+            'TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG'
           )
         })
 
         it('reverts when passed address zero', async () => {
-          await assertRevert(oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [0]), 'ORACLE_SENDER_ZERO')
+          await assertRevert(
+            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [0]),
+            'TOKEN_BALANCE_ORACLE_SENDER_ZERO'
+          )
         })
       })
     })
