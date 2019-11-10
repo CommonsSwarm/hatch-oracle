@@ -12,7 +12,9 @@ The Token Oracle app is initialized with the address of an ERC-20 token and a mi
 
 ## Initialization
 
-The Token Oracle is initialized with `address _token` and `uint256 _minBalance` parameters. The `address _token` parameter is the address of the token that Token Oracle is to track. The `uint256 _minBalance` is the minimum balance of `address _token` that an account needs to hold.
+The Token Oracle is initialized with `address _token` and `uint256 _minBalance` parameters.
+- The `address _token` parameter is the address of the token that Token Oracle is to track.
+- The `uint256 _minBalance` is the minimum balance of `address _token` that an account needs to hold.
 
 ## Roles
 
