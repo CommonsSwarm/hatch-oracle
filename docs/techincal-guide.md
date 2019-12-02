@@ -6,45 +6,36 @@ The Token Oracle app is an [ACL Oracle](https://hack.aragon.org/docs/acl_IACLOra
 
 ## External Contract Dependencies
 
-The ABC app relies on the following external libraries.
+The Token Oracle app relies on the following external libraries.
 
 ### Audited External Contracts
 
 These contracts have been audited by 3rd parties. Information on past Aragon audits can be found at the following locations:
+
 - https://github.com/aragon/security-review/blob/master/past-reports.md
 - https://wiki.aragon.org/association/security/
 
 ```
-// Aragon app template
 import "@aragon/os/contracts/apps/AragonApp.sol";
-// Aragon oracle contract
 import "@aragon/os/contracts/acl/IACLOracle.sol";
-// ERC-20 token contract
 import "@aragon/os/contracts/lib/token/ERC20.sol";
 ```
-
-### External Contracts Developed By 1Hive
-
-```
-// non-audited external contracts should be copypastad into this section
-// a code comment should be added explaining it's purpose
-```
-
-These contracts have not been audited by 3rd parties.
 
 <br />
 
 ## Roles and Permissions
 
 The Token Balance Oracle has the following roles:
+
 ```
-// roles should be copypastad into this section
-// a code comment should be added explaining it's purpose
+bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
+bytes32 public constant SET_MIN_BALANCE_ROLE = keccak256("SET_MIN_BALANCE_ROLE");
 ```
 
 These roles can be set to another Aragon app or an individual address. We recommend the following permissions:
-- `SET_TOKEN_ROLE` => TBD
-- `SET_MIN_BALANCE_ROLE` => TBD
+
+- `SET_TOKEN_ROLE` => Voting app
+- `SET_MIN_BALANCE_ROLE` => Voting app
 
 <br />
 
@@ -59,6 +50,7 @@ More information on Aragon oracles can be found [here](https://hack.aragon.org/d
 ## Globally Scoped Variables
 
 The following variables are globally scoped in the Token Balance oracle.
+
 ```
 // the address of the token contract to check
 ERC20 public token;
@@ -71,6 +63,7 @@ uint256 public minBalance;
 ## Events
 
 Events are emitted when the following functions are called.
+
 ```
 // the token address has been changed
 event TokenSet(address token);
@@ -83,6 +76,7 @@ event MinimumBalanceSet(uint256 minBalance);
 ## Initialization
 
 The Token Balance oracle is initialized with the following parameters
+
 ```
 // initializing the token balance oracle sets the token contract to query and the minimum balance needed to return true
 function initialize(address _token, uint256 _minBalance) external onlyInit {
@@ -100,6 +94,7 @@ function initialize(address _token, uint256 _minBalance) external onlyInit {
 ## setToken
 
 `setToken` sets the token contract address to track. The address supplied must be an Ethereum contract. An event is emitted every time this parameter is set.
+
 ```
 /**
 * @notice Update token address to `_token`
@@ -118,6 +113,7 @@ function setToken(address _token) external auth(SET_TOKEN_ROLE) {
 ## setMinBalance`
 
 `setMinBalance` sets the minimum balance that is required for the Token Balance to return true. An event is emitted every time this parameter is set.
+
 ```
 /**
 * @notice Update minimum balance to `_minBalance`
@@ -134,9 +130,13 @@ function setMinBalance(uint256 _minBalance) external auth(SET_MIN_BALANCE_ROLE) 
 
 ## canPerform
 
-`canPerform` returns a boolean if the address specified in the `_how` parameter has a balance greater than or equal to the `minBalance` set in the Token Balance oracle. `_how` is just an array that can contain data. It is expected that the data contained is the address to check. Checks are performed on the data in the [0] position of the array to make sure that it is a valid address, then the token balance of that address is checked, then a boolean is returned depending on if the token balance is greater than or equal to the `minBalance` parameter set in the Token Balance oracle.
+`canPerform` returns true if the address specified in the `_how` parameter has a balance greater than or equal to the `minBalance` set in the Token Balance oracle. `_how` is just an array that can contain data.
+It is expected that the data contained is the address to check. In order for this to happen the function protected by a role with this ACL Oracle, should specify the address in the `autP` modifier as `autP(SOME_ROLE, sender)`
+
+Checks are performed on the data in the [0] position of the array to make sure that it is a valid address, then the token balance of that address is checked, then a boolean is returned stating whether the token balance is greater than or equal to the `minBalance` parameter set in the Token Balance oracle or not.
 
 More information on Aragon oracles and the `_how` parameter can be found [here](https://hack.aragon.org/docs/acl_IACLOracle).
+
 ```
 /**
 * @notice ACLOracle
