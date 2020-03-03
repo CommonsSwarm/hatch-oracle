@@ -8,13 +8,13 @@ This guide will walk you through everything you need to add Token Oracle to an e
 
 Token Oracle has been published to the following locations:
 
+- Mainnet token-balance-oracle.aragonpm.eth
 - Rinkeby token-balance-oracle.aragonpm.eth
-- Mainnet -
 
 To deploy to an organization you can use the [Aragon CLI](https://hack.aragon.org/docs/cli-intro.html).
 
 ```sh
-aragon dao install <dao-address> token-balance-oracle.open.aragonpm.eth --app-init-args <token-address> <minimum-required-balance>
+aragon dao install <dao-address> token-balance-oracle.aragonpm.eth --app-init-args <token-address> <minimum-required-balance>
 ```
 
 We recommend setting the following permissions:
@@ -30,10 +30,10 @@ We recommend setting the following permissions:
 
 ### 1. Install Token Oracle to your DAO
 
-Token Oracle app has been published to the APM on Rinkeby at `token-balance-oracle.open.aragonpm.eth`
+Token Oracle app has been published to the APM on Mainnet and Rinkeby at `token-balance-oracle.aragonpm.eth`
 
 ```sh
-aragon dao install $dao token-balance-oracle.open.aragonpm.eth --app-init-args $token_address $minimum_balance --environment aragon:rinkeby
+aragon dao install $dao token-balance-oracle.aragonpm.eth --app-init-args $token_address $minimum_balance --environment aragon:rinkeby
 ```
 
 In case you have a democracy DAO setHead over to the voting app and you will see a new vote.
