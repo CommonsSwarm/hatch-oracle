@@ -1,5 +1,5 @@
 const { assertRevert } = require('./helpers/helpers')
-const Oracle = artifacts.require('TokenBalanceOracle')
+const Oracle = artifacts.require('HatchBalanceOracle')
 const MockErc20 = artifacts.require('TokenMock')
 const ExecutionTarget = artifacts.require('ExecutionTarget')
 
@@ -11,10 +11,10 @@ const BN = require('bn.js')
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
 contract(
-  'TokenBalanceOracle',
+  'HatchOracle',
   ([appManager, accountBal900, accountBal100, accountBal0, nonContractAddress]) => {
     let oracleBase, oracle, mockErc20
-    let SET_TOKEN_ROLE, SET_MIN_BALANCE_ROLE
+    let SET_TOKEN_ROLE
 
     const ORACLE_MINIMUM_BALANCE = 100
     const MOCK_TOKEN_BALANCE = 1000
@@ -22,16 +22,15 @@ contract(
     before('deploy base apps', async () => {
       oracleBase = await Oracle.new()
       SET_TOKEN_ROLE = await oracleBase.SET_TOKEN_ROLE()
-      SET_MIN_BALANCE_ROLE = await oracleBase.SET_MIN_BALANCE_ROLE()
     })
 
-    beforeEach('deploy dao and token balance oracle', async () => {
+    beforeEach('deploy dao and hatch oracle', async () => {
       const daoDeployment = await deployDAO(appManager)
       dao = daoDeployment.dao
       acl = daoDeployment.acl
 
       const newOracleReceipt = await dao.newAppInstance(
-        nameHash('token-balance-oracle.aragonpm.test'),
+        nameHash('hatch-oracle.aragonpm.test'),
         oracleBase.address,
         '0x',
         false,
@@ -81,20 +80,6 @@ contract(
 
         it('reverts when setting a non contract token address', async () => {
           await assertRevert(oracle.setToken(nonContractAddress), 'ORACLE_TOKEN_NOT_CONTRACT')
-        })
-      })
-
-      describe('setBalance(uint256 _minBalance)', () => {
-        beforeEach('set permission', async () => {
-          await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
-        })
-
-        it('sets a new minimum balance', async () => {
-          const expectedNewBalance = 100
-          await oracle.setMinBalance(expectedNewBalance)
-
-          const actualNewBalance = await oracle.minBalance()
-          assert.equal(actualNewBalance, expectedNewBalance)
         })
       })
 

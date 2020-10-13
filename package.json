@@ -1,5 +1,5 @@
 {
-  "name": "@1hive/oracle-token-balance",
+  "name": "@1hive/hatch-oracle",
   "version": "1.1.0",
   "scripts": {
     "prepublishOnly": "aragon contracts compile",
@@ -22,7 +22,7 @@
     "/test"
   ],
   "keywords": [],
-  "description": "ACL Oracle enforcing token ownership",
+  "description": "ACL Oracle capping max token transfering",
   "devDependencies": {
     "@aragon/cli": "^6.0.0",
     "@aragon/test-helpers": "^2.1.0",
@@ -41,6 +41,7 @@
     "prettier": "^1.17.1"
   },
   "dependencies": {
+    "@ablack/fundraising-presale": "^1.0.0",
     "@aragon/os": "^4.0.1"
   }
 }
