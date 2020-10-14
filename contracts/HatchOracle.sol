@@ -8,7 +8,7 @@ import "@ablack/fundraising-presale/contracts/Presale.sol";
 import "@aragon/os/contracts/lib/math/SafeMath.sol";
 
 
-contract HatchBalanceOracle is AragonApp, IACLOracle {
+contract HatchOracle is AragonApp, IACLOracle {
     using SafeMath for uint256;
 
     bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
