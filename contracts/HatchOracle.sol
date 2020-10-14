@@ -23,7 +23,6 @@ contract HatchOracle is AragonApp, IACLOracle {
     uint256 public ratioNom;
     uint256 public ratioDen;
     Presale public hatch;
-    mapping(address => uint256) public contributions;
 
     event TokenSet(address token);
     event RatioSet(uint256 ratioNom, uint256 ratioDen);
@@ -72,7 +71,7 @@ contract HatchOracle is AragonApp, IACLOracle {
      * @param _contributor Address of the contributor we are querying
      */
     function allowance(address _contributor) external view returns (uint256) {
-        return token.balanceOf(_contributor).mul(ratioNom).div(ratioDen) - contributions[_contributor];
+        return token.balanceOf(_contributor).mul(ratioNom).div(ratioDen) - _getTotalContributed(_contributor);
     }
 
     /**
@@ -86,7 +85,6 @@ contract HatchOracle is AragonApp, IACLOracle {
         require(_how[0] != 0, ERROR_SENDER_ZERO);
 
         address sender = address(_how[0]);
-        uint256 totalContributed = contributions[sender].add(_how[1]);
         uint256 senderBalance = token.balanceOf(sender);
 
         return senderBalance.mul(ratioNom).div(ratioDen) >= _getTotalContributed(sender);
