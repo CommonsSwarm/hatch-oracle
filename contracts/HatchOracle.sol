@@ -87,7 +87,7 @@ contract HatchOracle is AragonApp, IACLOracle {
         address sender = address(_how[0]);
         uint256 senderBalance = token.balanceOf(sender);
 
-        return senderBalance.mul(ratioNom).div(ratioDen) >= _getTotalContributed(sender);
+        return senderBalance.mul(ratioNom).div(ratioDen) >= _getTotalContributed(sender) + _how[1];
     }
 
     function _getTotalContributed(address _contributor) internal view returns (uint256) {
