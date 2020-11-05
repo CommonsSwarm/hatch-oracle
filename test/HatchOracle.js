@@ -1,19 +1,20 @@
-const { assertRevert } = require('./helpers/helpers')
+const { assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
 const Oracle = artifacts.require('HatchBalanceOracle')
 const MockErc20 = artifacts.require('TokenMock')
 const ExecutionTarget = artifacts.require('ExecutionTarget')
+const Presale = artifacts.require('Presale')
 
-const deployDAO = require('./helpers/deployDao')
-const { deployedContract } = require('./helpers/helpers')
+const { newDao, installNewApp } = require('@aragon/contract-helpers-test/src/aragon-os')
+
 const { hash: nameHash } = require('eth-ens-namehash')
-const BN = require('bn.js')
+const { bn } = require('@aragon/contract-helpers-test/src/numbers')
 
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
 contract(
   'HatchOracle',
   ([appManager, accountBal900, accountBal100, accountBal0, nonContractAddress]) => {
-    let oracleBase, oracle, mockErc20
+    let oracleBase, presaleBase, oracle, presale, mockErc20
     let SET_TOKEN_ROLE
 
     const ORACLE_MINIMUM_BALANCE = 100
@@ -21,31 +22,35 @@ contract(
 
     before('deploy base apps', async () => {
       oracleBase = await Oracle.new()
+      presaleBase = await Presale.new()
       SET_TOKEN_ROLE = await oracleBase.SET_TOKEN_ROLE()
     })
 
     beforeEach('deploy dao and hatch oracle', async () => {
-      const daoDeployment = await deployDAO(appManager)
+      const daoDeployment = await newDao(appManager)
       dao = daoDeployment.dao
       acl = daoDeployment.acl
 
-      const newOracleReceipt = await dao.newAppInstance(
+      oracle = await Oracle.at(await installNewApp(
+        dao,
         nameHash('hatch-oracle.aragonpm.test'),
         oracleBase.address,
-        '0x',
-        false,
-        {
-          from: appManager,
-        }
-      )
-      oracle = await Oracle.at(deployedContract(newOracleReceipt))
+        appManager
+      ))
+
+      presale = await Presale.at(await installNewApp(
+        dao,
+        nameHash('presale.aragonpm.test'),
+        presaleBase.address,
+        appManager
+      ))
       mockErc20 = await MockErc20.new(accountBal900, MOCK_TOKEN_BALANCE)
       mockErc20.transfer(accountBal100, ORACLE_MINIMUM_BALANCE, { from: accountBal900 })
     })
 
     describe('initialize(address _token)', () => {
       beforeEach('initialize oracle', async () => {
-        await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE)
+        await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE, 1, presale.address)
       })
 
       it('sets variables as expected', async () => {
@@ -123,7 +128,7 @@ contract(
 
         it('reverts when sender too big', async () => {
           await assertRevert(
-            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [new BN(2).pow(new BN(160))]),
+            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [bn(2).pow(bn(160))]),
             'TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG'
           )
         })
@@ -155,27 +160,22 @@ contract(
       let INCREASE_COUNTER_ROLE
       let oracleAddressBN, params
 
-      const ORACLE_PARAM_ID = new BN(203).shln(248)
-      const EQ = new BN(1).shln(240)
+      const ORACLE_PARAM_ID = bn(203).shln(248)
+      const EQ = bn(1).shln(240)
       const INITIAL_COUNTER = 1
 
       beforeEach('deploy ExecutionTarget', async () => {
         executionTargetBase = await ExecutionTarget.new()
         INCREASE_COUNTER_ROLE = await executionTargetBase.INCREASE_COUNTER_ROLE()
-
-        const newExecutionTargetReceipt = await dao.newAppInstance(
+        executionTarget = await ExecutionTarget.at(await installNewApp(
+          dao,
           nameHash('execution-target.aragonpm.test'),
           executionTargetBase.address,
-          '0x',
-          false,
-          {
-            from: appManager,
-          }
-        )
-        executionTarget = await ExecutionTarget.at(deployedContract(newExecutionTargetReceipt))
+          appManager
+        ))
 
         // convert oracle address to BN and get param256: [(uint256(ORACLE_PARAM_ID) << 248) + (uint256(EQ) << 240) + oracleAddress];
-        oracleAddressBN = new BN(oracle.address.slice(2), 16)
+        oracleAddressBN = bn(oracle.address.slice(2), 16)
         params = [ORACLE_PARAM_ID.add(EQ).add(oracleAddressBN)]
 
         await executionTarget.initialize(INITIAL_COUNTER)

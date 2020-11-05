@@ -2,18 +2,15 @@
   "name": "@1hive/hatch-oracle",
   "version": "1.1.0",
   "scripts": {
-    "build": "",
-    "prepublishOnly": "aragon contracts compile",
-    "publish:patch": "buidler publish patch",
-    "publish:minor": "buidler publish minor",
+    "compile": "buidler compile --force",
+    "lint": "solium --dir ./contracts",
+    "test": "buidler test --network buidlerevm",
+    "test:gas": "REPORT_GAS=true buidler test --network localhost",
+    "coverage": "buidler coverage --network coverage",
+    "abi:extract": "buidler-extract --output abi/ --keys abi",
     "publish:major": "buidler publish major",
-    "versions": "aragon apm versions",
-    "lint": "eslint . & solium --dir ./contracts",
-    "lint:fix": "eslint . --fix & solium --dir ./contracts --fix",
-    "coverage": "cross-env SOLIDITY_COVERAGE=true npm run ganache-cli:test",
-    "coveralls": "cat ./coverage/lcov.info | npx coveralls",
-    "ganache-cli:test": "sh ./node_modules/@aragon/test-helpers/ganache-cli.sh",
-    "test": "cross-env TRUFFLE_TEST=true npm run ganache-cli:test"
+    "publish:minor": "buidler publish minor",
+    "publish:patch": "buidler publish patch"
   },
   "files": [
     "/arapp.json",
@@ -55,6 +52,7 @@
   },
   "dependencies": {
     "@ablack/fundraising-presale": "^1.0.0",
+    "@aragon/contract-helpers-test": "0.1.0",
     "@aragon/os": "^4.0.1"
   }
 }
