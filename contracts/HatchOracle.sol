@@ -71,7 +71,7 @@ contract HatchOracle is AragonApp, IACLOracle {
      * @param _contributor Address of the contributor we are querying
      */
     function allowance(address _contributor) external view returns (uint256) {
-        return token.balanceOf(_contributor).mul(ratioNom).div(ratioDen) - _getTotalContributed(_contributor);
+        return token.balanceOf(_contributor).mul(ratioNom).div(ratioDen).sub(_getTotalContributed(_contributor));
     }
 
     /**
@@ -87,7 +87,7 @@ contract HatchOracle is AragonApp, IACLOracle {
         address sender = address(_how[0]);
         uint256 senderBalance = token.balanceOf(sender);
 
-        return senderBalance.mul(ratioNom).div(ratioDen) >= _getTotalContributed(sender) + _how[1];
+        return senderBalance.mul(ratioNom).div(ratioDen) >= _getTotalContributed(sender).add(_how[1]);
     }
 
     function _getTotalContributed(address _contributor) internal view returns (uint256) {
