@@ -1,5 +1,5 @@
 const { assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
-const Oracle = artifacts.require('HatchBalanceOracle')
+const Oracle = artifacts.require('HatchOracle')
 const MockErc20 = artifacts.require('TokenMock')
 const ExecutionTarget = artifacts.require('ExecutionTarget')
 const Presale = artifacts.require('Presale')
@@ -50,7 +50,7 @@ contract(
 
     describe('initialize(address _token)', () => {
       beforeEach('initialize oracle', async () => {
-        await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE, 1, presale.address)
+        await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE, presale.address)
       })
 
       it('sets variables as expected', async () => {
