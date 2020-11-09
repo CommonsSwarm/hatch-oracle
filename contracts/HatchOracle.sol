@@ -19,9 +19,10 @@ contract HatchOracle is AragonApp, IACLOracle {
     string private constant ERROR_SENDER_TOO_BIG = "TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG";
     string private constant ERROR_SENDER_ZERO = "TOKEN_BALANCE_ORACLE_SENDER_ZERO";
 
+    uint32  public constant PPM      = 1000000;
+
     ERC20 public token;
-    uint256 public ratioNom;
-    uint256 public ratioDen;
+    uint256 public ratio;
     Presale public hatch;
 
     event TokenSet(address token);
@@ -29,15 +30,13 @@ contract HatchOracle is AragonApp, IACLOracle {
 
     /**
      * @param _token The token address
-     * @param _ratioNom Nominator for ratio between sent tokens and token balance
-     * @param _ratioDen Denominator for ratio between sent tokens and token balance
+     * @param _ratio Ratio between sent tokens and token balance
     */
-    function initialize(address _token, uint256 _ratioNom, uint256 _ratioDen, address _hatch) external onlyInit {
+    function initialize(address _token, uint256 _ratio, address _hatch) external onlyInit {
         require(isContract(_token), ERROR_TOKEN_NOT_CONTRACT);
 
         token = ERC20(_token);
-        ratioNom = _ratioNom;
-        ratioDen = _ratioDen;
+        ratio = _ratio;
         hatch = Presale(_hatch);
 
         initialized();
@@ -56,14 +55,12 @@ contract HatchOracle is AragonApp, IACLOracle {
 
     /**
      * @notice Update ratio to `_ratioNom` / `_ratioDen`
-     * @param _ratioNom The new nominator for ratio between sent tokens and token balance
-     * @param _ratioDen The new denominator for ratio between sent tokens and token balance
+     * @param _ratio The new ratio between sent tokens and token balance
      */
-    function setRatio(uint256 _ratioNom, uint256 _ratioDen) external auth(SET_RATIO_ROLE) {
-        ratioNom = _ratioNom;
-        ratioDen = _ratioDen;
+    function setRatio(uint256 _ratio) external auth(SET_RATIO_ROLE) {
+        ratio = _ratio;
 
-        emit RatioSet(_ratioNom, _ratioDen);
+        emit RatioSet(_ratio, PPM);
     }
 
     /**
@@ -71,7 +68,7 @@ contract HatchOracle is AragonApp, IACLOracle {
      * @param _contributor Address of the contributor we are querying
      */
     function allowance(address _contributor) external view returns (uint256) {
-        return token.balanceOf(_contributor).mul(ratioNom).div(ratioDen).sub(_getTotalContributed(_contributor));
+        return token.balanceOf(_contributor).mul(ratio).div(PPM).sub(_getTotalContributed(_contributor));
     }
 
     /**
@@ -87,7 +84,7 @@ contract HatchOracle is AragonApp, IACLOracle {
         address sender = address(_how[0]);
         uint256 senderBalance = token.balanceOf(sender);
 
-        return senderBalance.mul(ratioNom).div(ratioDen) >= _getTotalContributed(sender).add(_how[1]);
+        return senderBalance.mul(ratio).div(PPM) >= _getTotalContributed(sender).add(_how[1]);
     }
 
     function _getTotalContributed(address _contributor) internal view returns (uint256) {
