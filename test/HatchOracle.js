@@ -17,7 +17,8 @@ contract(
     let oracleBase, presaleBase, oracle, presale, mockErc20
     let SET_TOKEN_ROLE
 
-    const ORACLE_MINIMUM_BALANCE = 100
+    const PPM = 1000000
+    const RATIO = 100 * PPM
     const MOCK_TOKEN_BALANCE = 1000
 
     before('deploy base apps', async () => {
@@ -45,12 +46,12 @@ contract(
         appManager
       ))
       mockErc20 = await MockErc20.new(accountBal900, MOCK_TOKEN_BALANCE)
-      mockErc20.transfer(accountBal100, ORACLE_MINIMUM_BALANCE, { from: accountBal900 })
+      mockErc20.transfer(accountBal100, RATIO, { from: accountBal900 })
     })
 
     describe('initialize(address _token)', () => {
       beforeEach('initialize oracle', async () => {
-        await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE, presale.address)
+        await oracle.initialize(mockErc20.address, RATIO, presale.address)
       })
 
       it('sets variables as expected', async () => {
@@ -63,7 +64,7 @@ contract(
 
       it('reverts on reinitialization', async () => {
         await assertRevert(
-          oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE),
+          oracle.initialize(mockErc20.address, RATIO, presale.address),
           'INIT_ALREADY_INITIALIZED'
         )
       })
@@ -84,12 +85,12 @@ contract(
         })
 
         it('reverts when setting a non contract token address', async () => {
-          await assertRevert(oracle.setToken(nonContractAddress), 'ORACLE_TOKEN_NOT_CONTRACT')
+          await assertRevert(oracle.setToken(nonContractAddress), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
         })
       })
 
       describe('canPerform(address, address, bytes32, uint256[])', async () => {
-        context(`Required balance is ${ORACLE_MINIMUM_BALANCE}`, () => {
+        context(`Required balance is ${RATIO}`, () => {
           it('can perform action if account has exactly the minimum required balance passed as param', async () => {
             assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900]))
           })
@@ -106,7 +107,7 @@ contract(
         context(`Required balance is 1`, () => {
           beforeEach('set minimum required balance to 1', async () => {
             await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
-            await oracle.setMinBalance(1)
+            await oracle.setRatio(1)
           })
 
           it('all accounts with positive balance can perform action', async () => {
@@ -119,35 +120,37 @@ contract(
           })
         })
 
-        it('reverts when no sender passed as param', async () => {
-          await assertRevert(
-            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', []),
-            'TOKEN_BALANCE_ORACLE_SENDER_MISSING'
-          )
-        })
+        // TODO - to review this with Sem, we're not checking sender missing in the canPerform function.
+        // it('reverts when no sender passed as param', async () => {
+        //   await assertRevert(
+        //     oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', []),
+        //     'TOKEN_BALANCE_ORACLE_SENDER_MISSING'
+        //   )
+        // })
 
         it('reverts when sender too big', async () => {
           await assertRevert(
             oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [bn(2).pow(bn(160))]),
-            'TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG'
+            'HATCH_ORACLE_SENDER_TOO_BIG'
           )
         })
 
+        // TODO - let's review this one with Sem.
         it('reverts when passed address zero', async () => {
           await assertRevert(
             oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [0]),
-            'TOKEN_BALANCE_ORACLE_SENDER_ZERO'
+            'HATCH_ORACLE_SENDER_ZERO'
           )
         })
       })
     })
     describe('app not initialized', () => {
       it('reverts on setting token', async () => {
-        await assertRevert(oracle.setToken(mockErc20.address), 'APP_AUTH_FAILED')
+        await assertRevert(oracle.setToken(mockErc20.address), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
       })
 
       it('reverts on setting balance', async () => {
-        await assertRevert(oracle.setMinBalance(0), 'APP_AUTH_FAILED')
+        await assertRevert(oracle.setRatio(0), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
       })
 
       it('reverts on checking can perform', async () => {
@@ -179,7 +182,7 @@ contract(
         params = [ORACLE_PARAM_ID.add(EQ).add(oracleAddressBN)]
 
         await executionTarget.initialize(INITIAL_COUNTER)
-        await oracle.initialize(mockErc20.address, ORACLE_MINIMUM_BALANCE)
+        await oracle.initialize(mockErc20.address, RATIO, presale.address)
 
         await acl.createPermission(
           appManager,
@@ -190,7 +193,7 @@ contract(
         await acl.grantPermissionP(ANY_ADDR, executionTarget.address, INCREASE_COUNTER_ROLE, params)
       })
 
-      context(`Required balance is ${ORACLE_MINIMUM_BALANCE}`, () => {
+      context(`Required balance is ${RATIO}`, () => {
         it('can increase counter if account has more than minimum required balance', async () => {
           await executionTarget.increaseCounter({ from: accountBal900 })
 
@@ -210,10 +213,10 @@ contract(
         })
       })
 
-      context(`Required balance is 1`, () => {
+      context(`Required ratio is 1`, () => {
         beforeEach('set minimum required balance to 1', async () => {
           await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
-          await oracle.setMinBalance(1)
+          await oracle.setRatio(1)
         })
 
         it('all accounts with positive balance can increase counter', async () => {
