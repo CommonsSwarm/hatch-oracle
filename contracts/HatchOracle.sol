@@ -14,19 +14,19 @@ contract HatchOracle is AragonApp, IACLOracle {
     bytes32 public constant SET_TOKEN_ROLE = keccak256("SET_TOKEN_ROLE");
     bytes32 public constant SET_RATIO_ROLE = keccak256("SET_RATIO_ROLE");
 
-    string private constant ERROR_TOKEN_NOT_CONTRACT = "TOKEN_BALANCE_ORACLE_TOKEN_NOT_CONTRACT";
-    string private constant ERROR_PARAMS_MISSING = "TOKEN_BALANCE_ORACLE_PARAMS_MISSING";
-    string private constant ERROR_SENDER_TOO_BIG = "TOKEN_BALANCE_ORACLE_SENDER_TOO_BIG";
-    string private constant ERROR_SENDER_ZERO = "TOKEN_BALANCE_ORACLE_SENDER_ZERO";
+    string private constant ERROR_TOKEN_NOT_CONTRACT = "HATCH_ORACLE_TOKEN_NOT_CONTRACT";
+    string private constant ERROR_PARAMS_MISSING = "HATCH_ORACLE_PARAMS_MISSING";
+    string private constant ERROR_SENDER_TOO_BIG = "HATCH_ORACLE_SENDER_TOO_BIG";
+    string private constant ERROR_SENDER_ZERO = "HATCH_ORACLE_SENDER_ZERO";
 
-    uint32  public constant PPM      = 1000000;
+    uint32  public constant PPM = 1000000;
 
     ERC20 public token;
     uint256 public ratio;
     Presale public hatch;
 
     event TokenSet(address token);
-    event RatioSet(uint256 ratioNom, uint256 ratioDen);
+    event RatioSet(uint256 ratio);
 
     /**
      * @param _token The token address
@@ -60,7 +60,7 @@ contract HatchOracle is AragonApp, IACLOracle {
     function setRatio(uint256 _ratio) external auth(SET_RATIO_ROLE) {
         ratio = _ratio;
 
-        emit RatioSet(_ratio, PPM);
+        emit RatioSet(_ratio);
     }
 
     /**
@@ -77,7 +77,7 @@ contract HatchOracle is AragonApp, IACLOracle {
     *     and amount with 'authP(SOME_ACL_ROLE, arr(sender, amount))', typically set to 'msg.sender'.
     */
     function canPerform(address, address, bytes32, uint256[] _how) external view returns (bool) {
-        require(_how.length > 1, ERROR_PARAMS_MISSING);
+        require(_how.length > 1, ERROR_PARAMS_MISSING); //why are we missing parms if how > 1 ??
         require(_how[0] < 2**160, ERROR_SENDER_TOO_BIG);
         require(_how[0] != 0, ERROR_SENDER_ZERO);
 
