@@ -2,7 +2,7 @@ const { assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
 const Oracle = artifacts.require('HatchOracle')
 const MockErc20 = artifacts.require('TokenMock')
 const ExecutionTarget = artifacts.require('ExecutionTarget')
-const Presale = artifacts.require('Presale')
+const Hatch = artifacts.require('HatchMock')
 
 const { newDao, installNewApp } = require('@aragon/contract-helpers-test/src/aragon-os')
 
@@ -13,24 +13,25 @@ const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
 contract(
   'HatchOracle',
-  ([appManager, accountBal900, accountBal100, accountBal0, nonContractAddress]) => {
-    let oracleBase, presaleBase, oracle, presale, mockErc20
-    let SET_TOKEN_ROLE
+  ([appManager, accountScore900, accountScore100, accountScore0, nonContractAddress]) => {
+    let oracleBase, hatchBase, oracle, hatch, scoreToken, hatchToken
+    let SET_SCORE_TOKEN_ROLE, SET_RATIO_ROLE, CONTRIBUTE_ROLE
 
     const PPM = 1000000
     const RATIO = 100 * PPM
-    const MOCK_TOKEN_BALANCE = 1000
+    const SCORE_TOKEN_BALANCE = 1000
+    const EXCHANGE_RATE = 10 * PPM
 
     before('deploy base apps', async () => {
       oracleBase = await Oracle.new()
-      presaleBase = await Presale.new()
-      SET_TOKEN_ROLE = await oracleBase.SET_TOKEN_ROLE()
+      hatchBase = await Hatch.new()
+      SET_SCORE_TOKEN_ROLE = await oracleBase.SET_SCORE_TOKEN_ROLE()
+      SET_RATIO_ROLE = await oracleBase.SET_RATIO_ROLE()
+      CONTRIBUTE_ROLE = await hatchBase.CONTRIBUTE_ROLE()
     })
 
     beforeEach('deploy dao and hatch oracle', async () => {
-      const daoDeployment = await newDao(appManager)
-      dao = daoDeployment.dao
-      acl = daoDeployment.acl
+      ({dao, acl} = await newDao(appManager))
 
       oracle = await Oracle.at(await installNewApp(
         dao,
@@ -39,106 +40,131 @@ contract(
         appManager
       ))
 
-      presale = await Presale.at(await installNewApp(
+      hatch = await Hatch.at(await installNewApp(
         dao,
-        nameHash('presale.aragonpm.test'),
-        presaleBase.address,
+        nameHash('hatch.aragonpm.test'),
+        hatchBase.address,
         appManager
       ))
-      mockErc20 = await MockErc20.new(accountBal900, MOCK_TOKEN_BALANCE)
-      mockErc20.transfer(accountBal100, RATIO, { from: accountBal900 })
+      scoreToken = await MockErc20.new(accountScore900, SCORE_TOKEN_BALANCE)
+      await scoreToken.transfer(accountScore100, SCORE_TOKEN_BALANCE / 10, { from: accountScore900 })
+      hatchToken = await MockErc20.new(hatch.address, 1000000000)
+      await hatch.initialize(hatchToken.address, EXCHANGE_RATE)
     })
 
-    describe('initialize(address _token)', () => {
+    describe('initialize(address _score, uint256 _ratio, address _hatch)', () => {
       beforeEach('initialize oracle', async () => {
-        await oracle.initialize(mockErc20.address, RATIO, presale.address)
+        await oracle.initialize(scoreToken.address, RATIO, hatch.address)
       })
 
       it('sets variables as expected', async () => {
-        const actualToken = await oracle.token()
+        const actualToken = await oracle.score()
+        const actualRatio = await oracle.ratio()
+        const actualHatch = await oracle.hatch()
         const hasInitialized = await oracle.hasInitialized()
 
-        assert.strictEqual(actualToken, mockErc20.address)
+        assert.strictEqual(actualToken, scoreToken.address)
+        assert.strictEqual(actualRatio.toString(), RATIO.toString())
+        assert.strictEqual(actualHatch, hatch.address)
         assert.isTrue(hasInitialized)
       })
 
       it('reverts on reinitialization', async () => {
         await assertRevert(
-          oracle.initialize(mockErc20.address, RATIO, presale.address),
+          oracle.initialize(scoreToken.address, RATIO, hatch.address),
           'INIT_ALREADY_INITIALIZED'
         )
       })
 
-      describe('setToken(address _token)', () => {
+      describe('setScoreToken(address _score)', () => {
         beforeEach('set permission', async () => {
-          await acl.createPermission(appManager, oracle.address, SET_TOKEN_ROLE, appManager)
+          await acl.createPermission(appManager, oracle.address, SET_SCORE_TOKEN_ROLE, appManager)
         })
 
-        it('sets a new token', async () => {
-          const newMockErc20 = await MockErc20.new(appManager, 100)
-          const expectedToken = newMockErc20.address
+        it('sets a new score token', async () => {
+          const newScore = await MockErc20.new(appManager, 100)
+          const expectedScore = newScore.address
 
-          await oracle.setToken(expectedToken)
+          await oracle.setScoreToken(expectedScore)
 
-          const actualToken = await oracle.token()
-          assert.equal(actualToken, expectedToken)
+          const actualScore = await oracle.score()
+          assert.equal(actualScore, expectedScore)
         })
 
         it('reverts when setting a non contract token address', async () => {
-          await assertRevert(oracle.setToken(nonContractAddress), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
+          await assertRevert(oracle.setScoreToken(nonContractAddress), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
         })
       })
 
       describe('canPerform(address, address, bytes32, uint256[])', async () => {
-        context(`Required balance is ${RATIO}`, () => {
-          it('can perform action if account has exactly the minimum required balance passed as param', async () => {
-            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900]))
+        context(`Ratio is ${RATIO/PPM} contribution / membership score`, () => {
+          it('can perform action if contribution is below score capacity', async () => {
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900, 90000]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore100, 10000]))
           })
 
-          it('can perform action if account has exactly the minimum required balance', async () => {
-            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal100]))
+          it("can't perform action if contribution is too high", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900, 90001]))
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore100, 10001]))
           })
 
-          it("can't perform action if account does not have tokens", async () => {
-            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal0]))
+          it("can't perform action if score is 0", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore0, 1]))
+          })
+
+        })
+
+        context(`Ratio is 1 contribution / membership score`, () => {
+          beforeEach('set ratio to 1/1', async () => {
+            await acl.createPermission(appManager, oracle.address, SET_RATIO_ROLE, appManager)
+            await oracle.setRatio(PPM)
+          })
+
+          it('can perform action if contribution is below score capacity', async () => {
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900, 900]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore100, 100]))
+          })
+
+          it("can't perform action if contribution is too high", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900, 901]))
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore100, 101]))
           })
         })
 
-        context(`Required balance is 1`, () => {
-          beforeEach('set minimum required balance to 1', async () => {
-            await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
-            await oracle.setRatio(1)
+        context(`Ratio is 1/100 contribution / membership score`, () => {
+          beforeEach('set ratio to 1/100', async () => {
+            await acl.createPermission(appManager, oracle.address, SET_RATIO_ROLE, appManager)
+            await oracle.setRatio(0.01 * PPM)
           })
 
-          it('all accounts with positive balance can perform action', async () => {
-            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal900]))
-            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal100]))
+          it('can perform action if contribution is below score capacity', async () => {
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900, 9]))
+            assert.isTrue(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore100, 1]))
           })
 
-          it("can't perform action if account does not have tokens", async () => {
-            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountBal0]))
+          it("can't perform action if contribution is too high", async () => {
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900, 10]))
+            assert.isFalse(await oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore100, 2]))
           })
         })
 
-        // TODO - to review this with Sem, we're not checking sender missing in the canPerform function.
-        // it('reverts when no sender passed as param', async () => {
-        //   await assertRevert(
-        //     oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', []),
-        //     'TOKEN_BALANCE_ORACLE_SENDER_MISSING'
-        //   )
-        // })
+        it('reverts when not enough params', async () => {
+          await assertRevert(
+            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [accountScore900]),
+            'HATCH_ORACLE_PARAMS_MISSING'
+          )
+        })
 
         it('reverts when sender too big', async () => {
           await assertRevert(
-            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [bn(2).pow(bn(160))]),
+            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [bn(2).pow(bn(160)), 100]),
             'HATCH_ORACLE_SENDER_TOO_BIG'
           )
         })
 
-        // TODO - let's review this one with Sem.
         it('reverts when passed address zero', async () => {
           await assertRevert(
-            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [0]),
+            oracle.canPerform(ANY_ADDR, ANY_ADDR, '0x', [0, 1000]),
             'HATCH_ORACLE_SENDER_ZERO'
           )
         })
@@ -146,109 +172,155 @@ contract(
     })
     describe('app not initialized', () => {
       it('reverts on setting token', async () => {
-        await assertRevert(oracle.setToken(mockErc20.address), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
+        await assertRevert(oracle.setScoreToken(scoreToken.address), 'APP_AUTH_FAILED')
       })
 
-      it('reverts on setting balance', async () => {
-        await assertRevert(oracle.setRatio(0), 'HATCH_ORACLE_TOKEN_NOT_CONTRACT')
+      it('reverts on setting ratio', async () => {
+        await assertRevert(oracle.setRatio(0), 'APP_AUTH_FAILED')
       })
 
       it('reverts on checking can perform', async () => {
-        await assertRevert(oracle.canPerform(appManager, ANY_ADDR, '0x', []))
+        await assertRevert(oracle.canPerform(appManager, ANY_ADDR, '0x', [accountScore0, 1]), 'INIT_NOT_INITIALIZED')
+      })
+
+      it('reverts on checking allowance', async () => {
+        await assertRevert(oracle.allowance(appManager), 'INIT_NOT_INITIALIZED')
       })
     })
 
-    describe('integration tests with executionTarget', () => {
-      let executionTargetBase, executionTarget
-      let INCREASE_COUNTER_ROLE
+    describe('integration tests with hatch', () => {
       let oracleAddressBN, params
 
       const ORACLE_PARAM_ID = bn(203).shln(248)
       const EQ = bn(1).shln(240)
-      const INITIAL_COUNTER = 1
 
-      beforeEach('deploy ExecutionTarget', async () => {
-        executionTargetBase = await ExecutionTarget.new()
-        INCREASE_COUNTER_ROLE = await executionTargetBase.INCREASE_COUNTER_ROLE()
-        executionTarget = await ExecutionTarget.at(await installNewApp(
-          dao,
-          nameHash('execution-target.aragonpm.test'),
-          executionTargetBase.address,
-          appManager
-        ))
-
+      beforeEach('initialize oracle', async () => {
         // convert oracle address to BN and get param256: [(uint256(ORACLE_PARAM_ID) << 248) + (uint256(EQ) << 240) + oracleAddress];
         oracleAddressBN = bn(oracle.address.slice(2), 16)
-        params = [ORACLE_PARAM_ID.add(EQ).add(oracleAddressBN)]
+        params = [ORACLE_PARAM_ID.add(EQ).add(oracleAddressBN), 1000]
 
-        await executionTarget.initialize(INITIAL_COUNTER)
-        await oracle.initialize(mockErc20.address, RATIO, presale.address)
+        await oracle.initialize(scoreToken.address, RATIO, hatch.address)
 
         await acl.createPermission(
           appManager,
-          executionTarget.address,
-          INCREASE_COUNTER_ROLE,
+          hatch.address,
+          CONTRIBUTE_ROLE,
           appManager
         )
-        await acl.grantPermissionP(ANY_ADDR, executionTarget.address, INCREASE_COUNTER_ROLE, params)
+        await acl.grantPermissionP(ANY_ADDR, hatch.address, CONTRIBUTE_ROLE, params)
       })
 
-      context(`Required balance is ${RATIO}`, () => {
-        it('can increase counter if account has more than minimum required balance', async () => {
-          await executionTarget.increaseCounter({ from: accountBal900 })
-
-          const actualCounter = await executionTarget.counter()
-          assert.equal(actualCounter, INITIAL_COUNTER + 1)
+      context(`Ratio is ${RATIO/PPM} contribution / membership score`, () => {
+        it('can perform action if contribution is below score capacity', async () => {
+          await hatch.contribute(90000, { from: accountScore900 })
+          await hatch.contribute(10000, { from: accountScore100 })
         })
 
-        it(`can increase counter if account has exactly the minimum required balance`, async () => {
-          await executionTarget.increaseCounter({ from: accountBal100 })
-        })
-
-        it("can't increase counter if account does not have tokens", async () => {
+        it("can't perform action if already contributed", async() => {
+          await hatch.contribute(90000 / 2, { from: accountScore900 })
+          await hatch.contribute(10000 / 2, { from: accountScore100 })
+          await hatch.contribute(90000 / 2, { from: accountScore900 })
+          await hatch.contribute(10000 / 2, { from: accountScore100 })
           await assertRevert(
-            executionTarget.increaseCounter({ from: accountBal0 }),
+            hatch.contribute(1, { from: accountScore900 }),
+            'APP_AUTH_FAILED'
+          )
+          await assertRevert(
+            hatch.contribute(1, { from: accountScore100 }),
+            'APP_AUTH_FAILED'
+          )
+        })
+
+        it("can't perform action if contribution is too high", async () => {
+          await assertRevert(
+            hatch.contribute(90001, { from: accountScore900 }),
+            'APP_AUTH_FAILED'
+          )
+          await assertRevert(
+            hatch.contribute(10001, { from: accountScore100 }),
+            'APP_AUTH_FAILED'
+          )
+        })
+
+        it("can't perform action if score is 0", async () => {
+          await assertRevert(
+            hatch.contribute(1, { from: accountScore0 }),
+            'APP_AUTH_FAILED'
+          )
+        })
+
+      })
+
+      context(`Ratio is 1 contribution / membership score`, () => {
+        beforeEach('set ratio to  1/1', async () => {
+          await acl.createPermission(appManager, oracle.address, SET_RATIO_ROLE, appManager)
+          await oracle.setRatio(PPM)
+        })
+
+        it('can perform action if contribution is below score capacity', async () => {
+          await hatch.contribute(900, { from: accountScore900 })
+          await hatch.contribute(100, { from: accountScore100 })
+        })
+
+        it("can't perform action if already contributed", async() => {
+          await hatch.contribute(900 / 2, { from: accountScore900 })
+          await hatch.contribute(100 / 2, { from: accountScore100 })
+          await hatch.contribute(900 / 2, { from: accountScore900 })
+          await hatch.contribute(100 / 2, { from: accountScore100 })
+          await assertRevert(
+            hatch.contribute(1, { from: accountScore900 }),
+            'APP_AUTH_FAILED'
+          )
+          await assertRevert(
+            hatch.contribute(1, { from: accountScore100 }),
+            'APP_AUTH_FAILED'
+          )
+        })
+
+        it("can't perform action if contribution is too high", async () => {
+          await assertRevert(
+            hatch.contribute(901, { from: accountScore900 }),
+            'APP_AUTH_FAILED'
+          )
+          await assertRevert(
+            hatch.contribute(101, { from: accountScore100 }),
             'APP_AUTH_FAILED'
           )
         })
       })
 
-      context(`Required ratio is 1`, () => {
-        beforeEach('set minimum required balance to 1', async () => {
-          await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
-          await oracle.setRatio(1)
+      context(`Ratio is 1/100 contribution / membership score`, () => {
+        beforeEach('set ratio to 1/100', async () => {
+          await acl.createPermission(appManager, oracle.address, SET_RATIO_ROLE, appManager)
+          await oracle.setRatio(0.01 * PPM)
         })
 
-        it('all accounts with positive balance can increase counter', async () => {
-          await executionTarget.increaseCounter({ from: accountBal900 })
-          await executionTarget.increaseCounter({ from: accountBal100 })
+        it('can perform action if contribution is below score capacity', async () => {
+          await hatch.contribute(9, { from: accountScore900 })
+          await hatch.contribute(1, { from: accountScore100 })
         })
 
-        it('all accounts with no balance cannot increase counter', async () => {
+        it("can't perform action if already contributed", async() => {
+          await hatch.contribute(5, { from: accountScore900 })
+          await hatch.contribute(4, { from: accountScore900 })
           await assertRevert(
-            executionTarget.increaseCounter({ from: accountBal0 }),
+            hatch.contribute(1, { from: accountScore900 }),
+            'APP_AUTH_FAILED'
+          )
+          await hatch.contribute(1, { from: accountScore100 })
+          await assertRevert(
+            hatch.contribute(1, { from: accountScore100 }),
             'APP_AUTH_FAILED'
           )
         })
-      })
 
-      context(`required balance is ${MOCK_TOKEN_BALANCE * 2}`, () => {
-        beforeEach(`set minimum required balance to ${MOCK_TOKEN_BALANCE * 2}`, async () => {
-          await acl.createPermission(appManager, oracle.address, SET_MIN_BALANCE_ROLE, appManager)
-          await oracle.setMinBalance(MOCK_TOKEN_BALANCE * 2)
-        })
-
-        it('no account can increase counter', async () => {
+        it("can't perform action if contribution is too high", async () => {
           await assertRevert(
-            executionTarget.increaseCounter({ from: accountBal900 }),
+            hatch.contribute(10, { from: accountScore900 }),
             'APP_AUTH_FAILED'
           )
           await assertRevert(
-            executionTarget.increaseCounter({ from: accountBal100 }),
-            'APP_AUTH_FAILED'
-          )
-          await assertRevert(
-            executionTarget.increaseCounter({ from: accountBal0 }),
+            hatch.contribute(2, { from: accountScore100 }),
             'APP_AUTH_FAILED'
           )
         })

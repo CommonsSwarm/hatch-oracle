@@ -51,7 +51,6 @@
     "web3": "^1.2.11"
   },
   "dependencies": {
-    "@ablack/fundraising-presale": "^1.0.0",
     "@aragon/contract-helpers-test": "0.1.0",
     "@aragon/os": "^4.0.1"
   }

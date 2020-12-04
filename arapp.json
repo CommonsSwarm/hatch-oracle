@@ -2,7 +2,7 @@
   "roles": [
     {
       "name": "Set the token address",
-      "id": "SET_TOKEN_ROLE",
+      "id": "SET_SCORE_TOKEN_ROLE",
       "params": []
     },
     {
