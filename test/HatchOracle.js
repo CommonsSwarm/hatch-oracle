@@ -1,7 +1,6 @@
 const { assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
 const Oracle = artifacts.require('HatchOracle')
 const MockErc20 = artifacts.require('TokenMock')
-const ExecutionTarget = artifacts.require('ExecutionTarget')
 const Hatch = artifacts.require('HatchMock')
 
 const { newDao, installNewApp } = require('@aragon/contract-helpers-test/src/aragon-os')
