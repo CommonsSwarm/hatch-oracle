@@ -6,11 +6,11 @@ The code in this repo has not been audited.
 
 ## How does it work?
 
-The Hatch Oracle app is initialized with the address of an ERC-20 token (the membership score, generally CSTK in Commons Stack), a ratio in parts per million, and the hatch contract it's interceding. There are setters for the first two parameters. Other applications can then "query" through the ACL, the Hatch Oracle to determine if an account has enough allowance to perform an action in the Hatch.
+The Hatch Oracle app is initialized with the address of an ERC-20 token (the membership score, generally CSTK in Commons Stack), a ratio in parts per million, and the hatch contract it is interceding. There are setters for the first two parameters. Other applications can then "query" through the ACL, the Hatch Oracle to determine if an account has enough allowance to perform an action in the Hatch.
 
 ## Initialization
 
-The Hatch Oracle is initialized with `address _score`, `uint256 _ratioNom`, and `address _hatch` parameters.
+The Hatch Oracle is initialized with `address _score`, `uint256 _ratio`, and `address _hatch` parameters.
 - The `address _score` parameter is the address of the token that Hatch Oracle is to track.
 - The `uint256 _ratio` determine the ratio token balance is going to be multiplied before doing the comparison with the amount of funds contributed. It's specified in PPM.
 - The `address _hatch` is the Hatch contract the oracle is interceding.
@@ -19,7 +19,7 @@ The Hatch Oracle is initialized with `address _score`, `uint256 _ratioNom`, and 
 
 The Hatch Oracle app should implement the following roles:
 - **SET_SCORE_TOKEN_ROLE**: This allows for changing the score membership token address that the Hatch Oracle tracks.
-- **SET_RATIO_ROLE**: This allows for changing the token ratio at which the Hatch Oracle returns a true or false boolean.
+- **SET_RATIO_ROLE**: This allows for changing the token ratio at which the Hatch Oracle multiplies the token before comparing with the amount of funds contributed.
 
 ## Interface
 
