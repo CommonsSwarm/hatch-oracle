@@ -1,12 +1,12 @@
-const { assertRevert } = require('@aragon/contract-helpers-test/src/asserts')
+const { assertRevert } = require('@1hive/contract-helpers-test/src/asserts')
 const Oracle = artifacts.require('HatchOracle')
 const MockErc20 = artifacts.require('TokenMock')
 const Hatch = artifacts.require('HatchMock')
 
-const { newDao, installNewApp } = require('@aragon/contract-helpers-test/src/aragon-os')
+const { newDao, installNewApp } = require('@1hive/contract-helpers-test/src/aragon-os')
 
 const { hash: nameHash } = require('eth-ens-namehash')
-const { bn } = require('@aragon/contract-helpers-test/src/numbers')
+const { bn } = require('@1hive/contract-helpers-test/src/numbers')
 
 const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
 
