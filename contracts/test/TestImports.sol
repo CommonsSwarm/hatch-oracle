@@ -13,6 +13,6 @@ import "@1hive/contract-helpers-test/contracts/0.4/token/TokenMock.sol";
 contract TestImports {
 
     constructor() public {
-
+        // solium-disable-previous-line no-empty-blocks
     }
 }

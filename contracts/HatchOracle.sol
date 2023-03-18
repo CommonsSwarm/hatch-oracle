@@ -6,6 +6,7 @@ import "@aragon/os/contracts/lib/token/ERC20.sol";
 import "@aragon/os/contracts/lib/math/SafeMath.sol";
 import { IHatch as Hatch } from "./IHatch.sol";
 
+
 contract HatchOracle is AragonApp, IACLOracle {
     using SafeMath for uint256;
 
